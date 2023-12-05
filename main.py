@@ -188,5 +188,3 @@ print(isotp_scan_socket)
 # On every identified ISOTP Endpoint, a UDS scan can be performed to identify
 # the attack surface of this ECU (Endpoint).
 
-
-# COMMIT TRY AGAIN
