@@ -10,17 +10,20 @@
 from scapy.config import conf
 
 from scapy.utils import hexdump
+from scapy.packet import explore, ls
 from scapy.sendrecv import sr1, sr
+
 # from scapy.main import load_contrib #, load_layer
 
 from scapy.layers.can import CAN
 from scapy.layers.dns import DNS, DNSQR
 from scapy.layers.inet import IP, UDP, traceroute, TCP
 
-
-
 from scapy.contrib.isotp import *
 from scapy.contrib.cansocket_native import NativeCANSocket
+from scapy.contrib.automotive.uds import *
+from scapy.contrib.automotive.uds_scan import UDS_Scanner, UDS_ServiceEnumerator
+
 # from scapy.contrib.cansocket import *
 
 # load_layer("dns")
@@ -37,69 +40,68 @@ conf.contribs['CANSocket'] = {'use-python-can': False} # default
 
 # # # # # # # # # # # # # # # #  EXPERIMENT 1 # # # # # # # # # # # # # # # #
 print("\nPLAYING WITH CAN FRAMES...\n", end="")
-print("SKIPPED!")
-# frame = CAN(flags='extended',
-#             identifier=0x10010000,
-#             length=8,
-#             data=b'\x01\x02\x03\x04\x05\x06\x07\x08'
-#             )
-# print("CAN frame contents:")
-# frame.show()
-# print()
-#
-# print("Hexdump of the CAN frame:")
-# hexdump(frame)
-# print()
+# print("SKIPPED!")
+frame = CAN(flags='extended',
+            identifier=0x10010000,
+            length=8,
+            data=b'\x01\x02\x03\x04\x05\x06\x07\x08'
+            )
+print("CAN frame contents:")
+frame.show()
+print()
+
+print("Hexdump of the CAN frame:")
+hexdump(frame)
+print()
 
 # # # # # # # # # # # # # # # #  EXPERIMENT 2 # # # # # # # # # # # # # # # #
 print("\nPLAYING WITH BASICS...\n", end="")
-print("SKIPPED!")
+# print("SKIPPED!")
 
-# packet = sr1(IP(dst="8.8.8.8")/UDP()/DNS(qd=DNSQR()))
+packet = sr1(IP(dst="8.8.8.8")/UDP()/DNS(qd=DNSQR()))
 
-# print()
-# print("Packet summary:")
-# print(packet.summary())
-# print()
-# print("Response:")
-# print(packet.show())
-# print()
-# print("Packet hexdump:")
-# print(hexdump(packet))
-# print()
-# print("DNS answer:")
-# print(packet[DNS].an.show())
-# print()
+print()
+print("Packet summary:")
+print(packet.summary())
+print()
+print("Response:")
+print(packet.show())
+print()
+print("Packet hexdump:")
+print(hexdump(packet))
+print()
+print("DNS answer:")
+print(packet[DNS].an.show())
+print()
 
 
-# print("Traceroute:")
-# traceroute_ans, traceroute_unans = traceroute('www.secdev.org', maxttl=15)
-# print()
-#
-# print("Simple port scanner:")
-# portscanner_ans = sr(IP(dst=["scanme.nmap.org", "nmap.org"])/TCP(dport=[22, 80, 443, 31337]), timeout=3, verbose=False)[0]
-# portscanner_ans.extend(sr(IP(dst=["scanme.nmap.org", "nmap.org"])/UDP(dport=53)/DNS(qd=DNSQR()), timeout=3, verbose=False)[0])
-# portscanner_ans.make_table(lambda x, y: (x[IP].dst, x.sprintf('%IP.proto%/{TCP:%r,TCP.dport%}{UDP:%r,UDP.dport%}'), y.sprintf('{TCP:%TCP.flags%}{ICMP:%ICMP.type%}')))
+print("Traceroute:")
+traceroute_ans, traceroute_unans = traceroute('www.secdev.org', maxttl=15)
+print()
+
+print("Simple port scanner:")
+portscanner_ans = sr(IP(dst=["scanme.nmap.org", "nmap.org"])/TCP(dport=[22, 80, 443, 31337]), timeout=3, verbose=False)[0]
+portscanner_ans.extend(sr(IP(dst=["scanme.nmap.org", "nmap.org"])/UDP(dport=53)/DNS(qd=DNSQR()), timeout=3, verbose=False)[0])
+portscanner_ans.make_table(lambda x, y: (x[IP].dst, x.sprintf('%IP.proto%/{TCP:%r,TCP.dport%}{UDP:%r,UDP.dport%}'), y.sprintf('{TCP:%TCP.flags%}{ICMP:%ICMP.type%}')))
 
 # # # # # # # # # # # # # # # #  EXPERIMENT 3 # # # # # # # # # # # # # # # #
 print("\nPLAYING WITH CAN SOCKETS...\n", end="")
-print("SKIPPED!")
-# print("Instantiating a new native can socket:")
-# nc_socket = NativeCANSocket(channel="vcan0")
-# print("sending a CAN frame...", end="")
-# packet = CAN(identifier=0x123, data=b'01020304')
-# nc_socket.send(packet)
-# print("done")
-# print("receiving a packet...", end="")
-# rx_packet = nc_socket.recv()
-# print("done\n")
-# print("Received packet:")
-# rx_packet.show()
-#
-# print("\nSniff some traffic:\n")
-# pkts = nc_socket.sniff(timeout=5, count=10)
-# print(pkts)
-# pkts[0].show()
+# print("SKIPPED!")
+print("Instantiating a new native can socket:")
+nc_socket = NativeCANSocket(channel="vcan0")
+print("sending a CAN frame...", end="")
+packet = CAN(identifier=0x123, data=b'01020304')
+nc_socket.send(packet)
+print("done")
+print("receiving a packet...")
+rx_packet = nc_socket.recv()
+print("Received packet:")
+rx_packet.show()
+
+print("\nSniff some traffic:\n")
+pkts = nc_socket.sniff(timeout=5, count=10)
+print(pkts)
+pkts[0].show()
 
 # # # # # # # # # # # # # # # # #  STEP 1  # # # # # # # # # # # # # # # # #
 # On CAN networks, ISOTP (ISO-15765 Transport Protocol) is a communication
@@ -121,27 +123,27 @@ print("SKIPPED!")
 
 
 print("\nPLAYING WITH ISO-TP...\n", end="")
-print("SKIPPED!")
+# print("SKIPPED!")
 
-# isotp_packet = ISOTP(b"super packet for isotp transport protocol",
-#                      tx_id=0x111, rx_id=0x222)
-# print("Example of packet:\n")
-# isotp_packet.show()
-#
-# print("underlying frames:\n")
-# can_frames = isotp_packet.fragment()
-# for can_frame in can_frames:
-#     ISOTPHeader(bytes(can_frame)).show()
-#
-# print("reconstruct the message:\n")
-# builder = ISOTPMessageBuilder()
-# builder.feed(can_frames)
-# print("message builder length: ", end="")
-# print(len(builder))
-# isotp_msg = builder.pop()
-# print(repr(isotp_msg))
-# print("message builder length: ", end="")
-# print(len(builder))
+isotp_packet = ISOTP(b"super packet for isotp transport protocol",
+                     tx_id=0x111, rx_id=0x222)
+print("Example of packet:\n")
+isotp_packet.show()
+
+print("underlying frames:\n")
+can_frames = isotp_packet.fragment()
+for can_frame in can_frames:
+    ISOTPHeader(bytes(can_frame)).show()
+
+print("reconstruct the message:\n")
+builder = ISOTPMessageBuilder()
+builder.feed(can_frames)
+print("message builder length: ", end="")
+print(len(builder))
+isotp_msg = builder.pop()
+print(repr(isotp_msg))
+print("message builder length: ", end="")
+print(len(builder))
 
 
 # To identify all possible communication endpoints and their supported
@@ -172,19 +174,56 @@ isotp_scan_socket = isotp_scan (
 print(isotp_scan_socket)
 
 
-# UDS is set as basecls
-# sock = ISOTPNativeSocket("vcan0",
-#                          tx_id=0x6f1,
-#                          rx_id=0x610,
-#                          ext_address=0x10,
-#                          rx_ext_address=0xf1,
-#                          basecls=UDS
-#                          )
-
-
-
 
 # # # # # # # # # # # # # # # # #  STEP 2  # # # # # # # # # # # # # # # # #
 # On every identified ISOTP Endpoint, a UDS scan can be performed to identify
 # the attack surface of this ECU (Endpoint).
 
+print("\nUDS SCANNING...\n")
+
+# let's instantiate a socket with basecls=UDS
+sock = ISOTPNativeSocket("vcan0",
+                         tx_id=0x6f1,
+                         rx_id=0x610,
+                         ext_address=0x10,
+                         rx_ext_address=0xf1,
+                         basecls=UDS
+                         )
+
+# create a packet and send it
+read_by_id_pkt = UDS()/UDS_RDBI(identifiers=[0x172a])
+print("packet to be sent:\n")
+print(repr(read_by_id_pkt))
+
+try:
+    rx = sock.sr1(read_by_id_pkt, timeout=1)
+except:
+    print("Something went wrong, an exception occurred :(")
+else:
+    if rx is not None:
+        rx.show()
+
+print("\nexploring possible UDS packets:\n")
+print("SKIPPED!")
+# explore("scapy.contrib.automotive.uds")
+
+print("\ndetails of UDS_SA:\n")
+ls(UDS_SA)
+
+print("\n sending tester present:\n")
+tps = UDS_TesterPresentSender(sock)
+tps.start()
+print("...stuff in here...")
+tps.stop()
+print("\n tester present finished.\n")
+
+
+# scanning
+print("\nStarting the UDS service enumerator (scanning)\n")
+uds_scanner = UDS_Scanner(sock, test_cases=[UDS_ServiceEnumerator])
+uds_scanner.scan(timeout=10)
+uds_scanner.show_testcases()
+
+
+# # # # # # # # # # # # # # # # #  STEP 3  # # # # # # # # # # # # # # # # #
+# also OBD-II scanning can be performed
