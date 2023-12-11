@@ -7,10 +7,10 @@
 # https://github.com/hartkopp/can-isotp
 
 
-from scapy.config import conf
+# from scapy.config import conf
 
 from scapy.utils import hexdump
-from scapy.packet import explore, ls
+from scapy.packet import ls #,explore
 from scapy.sendrecv import sr1, sr
 
 # from scapy.main import load_contrib #, load_layer
@@ -99,9 +99,9 @@ print("Received packet:")
 rx_packet.show()
 
 print("\nSniff some traffic:\n")
-pkts = nc_socket.sniff(timeout=5, count=10)
-print(pkts)
-pkts[0].show()
+sniffed_packets = nc_socket.sniff(timeout=5, count=10)
+print(sniffed_packets)
+sniffed_packets[0].show()
 
 # # # # # # # # # # # # # # # # #  STEP 1  # # # # # # # # # # # # # # # # #
 # On CAN networks, ISOTP (ISO-15765 Transport Protocol) is a communication
