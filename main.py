@@ -39,7 +39,7 @@ conf.contribs['CANSocket'] = {'use-python-can': False} # default
 
 
 # # # # # # # # # # # # # # # #  EXPERIMENT 1 # # # # # # # # # # # # # # # #
-print("\nPLAYING WITH CAN FRAMES...\n", end="")
+print("\nPLAYING WITH CAN FRAMES...", end="")
 print("SKIPPED!")
 # frame = CAN(flags='extended',
 #             identifier=0x10010000,
@@ -55,7 +55,7 @@ print("SKIPPED!")
 # print()
 
 # # # # # # # # # # # # # # # #  EXPERIMENT 2 # # # # # # # # # # # # # # # #
-print("\nPLAYING WITH BASICS...\n", end="")
+print("\nPLAYING WITH BASICS...", end="")
 print("SKIPPED!")
 
 # packet = sr1(IP(dst="8.8.8.8")/UDP()/DNS(qd=DNSQR()))
@@ -85,7 +85,7 @@ print("SKIPPED!")
 # portscanner_ans.make_table(lambda x, y: (x[IP].dst, x.sprintf('%IP.proto%/{TCP:%r,TCP.dport%}{UDP:%r,UDP.dport%}'), y.sprintf('{TCP:%TCP.flags%}{ICMP:%ICMP.type%}')))
 
 # # # # # # # # # # # # # # # #  EXPERIMENT 3 # # # # # # # # # # # # # # # #
-print("\nPLAYING WITH CAN SOCKETS...\n", end="")
+print("\nPLAYING WITH CAN SOCKETS...", end="")
 print("SKIPPED!")
 # print("Instantiating a new native can socket:")
 # nc_socket = NativeCANSocket(channel="vcan0")
@@ -122,7 +122,7 @@ print("SKIPPED!")
 # addressing with a CAN identifier range from 0x500-0x7ff.
 
 
-print("\nPLAYING WITH ISO-TP...\n", end="")
+print("\nPLAYING WITH ISO-TP...", end="")
 print("SKIPPED!")
 
 # isotp_packet = ISOTP(b"super packet for isotp transport protocol",
@@ -163,7 +163,7 @@ print("SKIPPED!")
 #
 # One could also perform passive scanning, not producing additional load
 
-print("\nISO-TP SCANNING...\n")
+print("\nISO-TP SCANNING...", end="")
 print("SKIPPED!")
 # isotp_scan_socket = isotp_scan (
 #                                NativeCANSocket(channel="vcan0"),
@@ -179,43 +179,46 @@ print("SKIPPED!")
 # On every identified ISOTP Endpoint, a UDS scan can be performed to identify
 # the attack surface of this ECU (Endpoint).
 
-print("\nUDS SCANNING...\n")
-# print("SKIPPED!")
+print("\nUDS SCANNING...", end="")
+print("SKIPPED!")
+
 # let's instantiate a socket with basecls=UDS
-sock = ISOTPNativeSocket("vcan0",
-                         tx_id=0x6f1,
-                         rx_id=0x610,
-                         ext_address=0x10,
-                         rx_ext_address=0xf1,
-                         basecls=UDS
-                         )
+
+# sock = ISOTPNativeSocket("vcan0",
+#                          tx_id=0x6f1,
+#                          rx_id=0x610,
+#                          ext_address=0x10,
+#                          rx_ext_address=0xf1,
+#                          basecls=UDS
+#                          )
 
 # create a packet and send it
-read_by_id_pkt = UDS()/UDS_RDBI(identifiers=[0x172a])
-print("packet to be sent:\n")
-print(repr(read_by_id_pkt))
 
-try:
-    rx = sock.sr1(read_by_id_pkt, timeout=1)
-except:
-    print("Something went wrong, an exception occurred :(")
-else:
-    if rx is not None:
-        rx.show()
-
-print("\nexploring possible UDS packets:\n")
-print("SKIPPED!")
+# read_by_id_pkt = UDS()/UDS_RDBI(identifiers=[0x172a])
+# print("packet to be sent:\n")
+# print(repr(read_by_id_pkt))
+#
+# try:
+#     rx = sock.sr1(read_by_id_pkt, timeout=1)
+# except:
+#     print("Something went wrong, an exception occurred :(")
+# else:
+#     if rx is not None:
+#         rx.show()
+#
+# print("\nexploring possible UDS packets:\n")
+# print("SKIPPED!")
 # explore("scapy.contrib.automotive.uds")
 
-print("\ndetails of UDS_SA:\n")
-ls(UDS_SA)
+# print("\ndetails of UDS_SA:\n")
+# ls(UDS_SA)
 
-print("\n sending tester present:\n")
-tps = UDS_TesterPresentSender(sock)
-tps.start()
-print("...stuff in here...")
-tps.stop()
-print("\n tester present finished.\n")
+# print("\n sending tester present:\n")
+# tps = UDS_TesterPresentSender(sock)
+# tps.start()
+# print("...stuff in here...")
+# tps.stop()
+# print("\n tester present finished.\n")
 
 
 # scanning
@@ -232,64 +235,46 @@ print("\n tester present finished.\n")
 
 # # # # # # # # # # # # # # # # #  STEP 4  # # # # # # # # # # # # # # # # #
 # black-box testing of UDS services
-print("debug 0")
-UDS_test0 = UDS(service="TesterPresent")
-print(repr(UDS_test0))
 
-print("debug 1")
-UDS_test1 = UDS(service=0x3E)
-print(repr(UDS_test1))
-
-print("debug 2")
-UDS_test2 = CAN() / ISOTP() / UDS() / UDS_TP(subFunction=0x80)
-print(repr(UDS_test2))
-hexdump(UDS_test2)
-
-print()
-print("can information")
-ls(CAN)
-# print(UDS_test.fragment()) # doesn't work
-# for frame in UDS_test.fragment():
-#     print("new iteration\n")
-#     frame.show()
-
-print()
+# print("can information")
+# ls(CAN)
 
 # First, we want to verify the UDS availability
 
-# conf.contribs['CAN']['swap-bytes'] = True
-conf.contribs['CAN']['remove-padding'] = True
+# conf.contribs['CAN']['remove-padding'] = True
+
+print("\nBLACK-BOX TESTING\n")
+print("First, we test for length and packet format with TP CAN message.\n"
+      "The following packets are sent (note that probably the underlying\n"
+      "implementation adds \\x00 padding):\n")
+
+lengths = [2, 2, 1, 2, 2, 2, 1]
+payloads = [b'\x3E\x00\x00\x00\x00\x00\x00',
+            b'\x3E\x80\x00\x00\x00\x00\x00',
+            b'\x3E\x00\x00\x00\x00\x00\x00',
+            b'\x3E\x80\x00\x00\x00\x00\x00',
+            b'\x3E\x00',
+            b'\x3E\x80',
+            b'\x3E']
+
+sock_vcan0 = NativeCANSocket(channel="vcan0")
 
 # ID is a value on 29 bits
-# we test for different length and data values
-tp0 = CAN(identifier=0x1FFFFFFF,
-          length=2,
-          data=b'\x3E\x00\x00\x00\x00\x00\x00')
-hexdump(tp0)
-tp1 = CAN(identifier=0x1FFFFFFF,
-          length=2,
-          data=b'\x3E\x80\x00\x00\x00\x00\x00')
-hexdump(tp1)
-tp2 = CAN(identifier=0x1FFFFFFF,
-          length=1,
-          data=b'\x3E\x00\x00\x00\x00\x00\x00')
-hexdump(tp2)
-tp3 = CAN(identifier=0x1FFFFFFF,
-          length=2,
-          data=b'\x3E\x80\x00\x00\x00\x00\x00')
-hexdump(tp3)
-tp4 = CAN(identifier=0x1FFFFFFF,
-          length=2,
-          data=b'\x3E\x00')
-hexdump(tp4)
-tp5 = CAN(identifier=0x1FFFFFFF,
-          length=2,
-          data=b'\x3E\x80')
-hexdump(tp5)
-tp6 = CAN(identifier=0x1FFFFFFF,
-          length=1,
-          data=b'\x3E')
-hexdump(tp6)
+# we test for different lengths and data values
+for i in range(0,7):
+    tp = CAN(identifier=0x1FFFFFFF, # TO DO must be set properly
+             length=lengths[i],
+             data=payloads[i])
+    hexdump(tp)
+    sock_vcan0.send(tp)
+
+# all the subsequent tests must be set according to the previous ping test
+
+
+
+
+
+
 
 
 
