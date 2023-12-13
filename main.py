@@ -6,7 +6,6 @@
 # needed to load iso-tp kernel module
 # https://github.com/hartkopp/can-isotp
 
-
 # from scapy.config import conf
 
 from scapy.utils import hexdump
@@ -243,8 +242,10 @@ print("SKIPPED!")
 
 # conf.contribs['CAN']['remove-padding'] = True
 
+CAN_IDENTIFIER = 0x1FFFFFFF # TO DO must be set properly
+
 print("\nBLACK-BOX TESTING\n")
-print("First, we test for length and packet format with TP CAN message.\n"
+print("First, we test for length and packet format with TP CAN message. \n"
       "The following packets are sent (note that probably the underlying\n"
       "implementation adds \\x00 padding):\n")
 
@@ -256,19 +257,90 @@ payloads = [b'\x3E\x00\x00\x00\x00\x00\x00',
             b'\x3E\x00',
             b'\x3E\x80',
             b'\x3E']
+passed = [False, False, False, False, False, False, False]
+ans_list = [[] for i in range(0,7)]
+unans_list = [[] for i in range(0,7)]
 
 sock_vcan0 = NativeCANSocket(channel="vcan0")
 
 # ID is a value on 29 bits
 # we test for different lengths and data values
 for i in range(0,7):
-    tp = CAN(identifier=0x1FFFFFFF, # TO DO must be set properly
+    tp = CAN(identifier=CAN_IDENTIFIER,
              length=lengths[i],
              data=payloads[i])
     hexdump(tp)
-    sock_vcan0.send(tp)
+    ans, unans = sock_vcan0.sr(tp, verbose=0)
+    ans_list[i].append(ans)
+    unans_list[i].append(unans)
 
-# all the subsequent tests must be set according to the previous ping test
+    # ans[0] to read the first answer
+    # ans[0].answer to access the CAN object in the query-answer object
+    print("The returned payload should be the following:")
+    print(ans[0].answer.data)
+
+    if ans[0] and ans[0].answer.data[0] == 0x7E:
+        passed[i] = True
+
+print("Checking passed tests...\n")
+for idx, flag in enumerate(passed):
+    if flag:
+        print(f"Positive response from payload: {payloads[idx]} with length: {lengths[idx]}")
+
+def send_selected_tester_present(socket, passed_tests):
+    for i in passed_tests:
+        if i is True:
+            selected_request = CAN(identifier=CAN_IDENTIFIER,
+                                    length=lengths[i],
+                                    data=payloads[i])
+            ans = socket.sr(selected_request, verbose=0)[0]
+            if ans[0] and ans[0].answer.data[0] != 0x7E:
+                return True
+            else:
+                continue
+    print("Something went wrong in TesterPresent probe\n")
+    return False
+
+
+
+# all the subsequent tests must be set according to the previous one
+
+# bruteforce test passed TO DO
+
+# TEST for discovering supported diagnostic sessions (TEST_DDS)
+print(
+      "#####################################################################\n"
+      "#####################################################################\n"
+      "############################## NEW TEST #############################\n"
+      "#####################################################################\n"
+      "#####################################################################\n"
+      )
+if not send_selected_tester_present(sock_vcan0, passed):
+    exit()
+
+payload = b'\x10'
+for i in range(0, 0xFF+1):
+    fuzz_value = payload + i.to_bytes(1, 'little')
+
+    dds_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=fuzz_value)
+    ans_dds_test = sock_vcan0.sr(dds_pkt, verbose=0)[0]
+    if not ans_dds_test[0]:
+        continue
+
+    response_code = ans_dds_test[0].answer.data[0]
+    if response_code == 0x50:
+        print("Positive response found")
+    elif response_code == 0x12:
+        print("error: subFunctionNotSupported")
+    elif response_code == 0x13:
+        print("error: incorrectMessageLengthOrInvalidFormat")
+        print("WARNING: possible implementation error")
+    elif response_code == 0x22:
+        print("error: conditionsNotCorrect")
+    else:
+        pass
+
+print("Fuzzing process finished.\n")
 
 
 
