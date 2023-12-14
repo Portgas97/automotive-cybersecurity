@@ -5,231 +5,12 @@
 # and much more.
 # needed to load iso-tp kernel module
 # https://github.com/hartkopp/can-isotp
+import utility
+from utility import *
 
-# from scapy.config import conf
-
-from scapy.utils import hexdump
-from scapy.packet import ls #,explore
-from scapy.sendrecv import sr1, sr
-
-# from scapy.main import load_contrib #, load_layer
-
-from scapy.layers.can import CAN
-from scapy.layers.dns import DNS, DNSQR
-from scapy.layers.inet import IP, UDP, traceroute, TCP
-
-from scapy.contrib.isotp import *
-from scapy.contrib.cansocket_native import NativeCANSocket
-from scapy.contrib.automotive.uds import *
-from scapy.contrib.automotive.uds_scan import UDS_Scanner, UDS_ServiceEnumerator
-
-# from scapy.contrib.cansocket import *
-
-# load_layer("dns")
-# load_layer("inet")
-# load_layer("can")
-# load_contrib("isotp")
-# load_contrib("automotive.uds")
-
-
-conf.contribs['CANSocket'] = {'use-python-can': False} # default
-# load_contrib('cansocket_native') ## ??? needed? already contribs['isotp'] below
-# conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
-
-
-# # # # # # # # # # # # # # # #  EXPERIMENT 1 # # # # # # # # # # # # # # # #
-print("\nPLAYING WITH CAN FRAMES...", end="")
-print("SKIPPED!")
-# frame = CAN(flags='extended',
-#             identifier=0x10010000,
-#             length=8,
-#             data=b'\x01\x02\x03\x04\x05\x06\x07\x08'
-#             )
-# print("CAN frame contents:")
-# frame.show()
-# print()
-#
-# print("Hexdump of the CAN frame:")
-# hexdump(frame)
-# print()
-
-# # # # # # # # # # # # # # # #  EXPERIMENT 2 # # # # # # # # # # # # # # # #
-print("\nPLAYING WITH BASICS...", end="")
-print("SKIPPED!")
-
-# packet = sr1(IP(dst="8.8.8.8")/UDP()/DNS(qd=DNSQR()))
-#
-# print()
-# print("Packet summary:")
-# print(packet.summary())
-# print()
-# print("Response:")
-# print(packet.show())
-# print()
-# print("Packet hexdump:")
-# print(hexdump(packet))
-# print()
-# print("DNS answer:")
-# print(packet[DNS].an.show())
-# print()
-#
-#
-# print("Traceroute:")
-# traceroute_ans, traceroute_unans = traceroute('www.secdev.org', maxttl=15)
-# print()
-#
-# print("Simple port scanner:")
-# portscanner_ans = sr(IP(dst=["scanme.nmap.org", "nmap.org"])/TCP(dport=[22, 80, 443, 31337]), timeout=3, verbose=False)[0]
-# portscanner_ans.extend(sr(IP(dst=["scanme.nmap.org", "nmap.org"])/UDP(dport=53)/DNS(qd=DNSQR()), timeout=3, verbose=False)[0])
-# portscanner_ans.make_table(lambda x, y: (x[IP].dst, x.sprintf('%IP.proto%/{TCP:%r,TCP.dport%}{UDP:%r,UDP.dport%}'), y.sprintf('{TCP:%TCP.flags%}{ICMP:%ICMP.type%}')))
-
-# # # # # # # # # # # # # # # #  EXPERIMENT 3 # # # # # # # # # # # # # # # #
-print("\nPLAYING WITH CAN SOCKETS...", end="")
-print("SKIPPED!")
-# print("Instantiating a new native can socket:")
-# nc_socket = NativeCANSocket(channel="vcan0")
-# print("sending a CAN frame...", end="")
-# packet = CAN(identifier=0x123, data=b'01020304')
-# nc_socket.send(packet)
-# print("done")
-# print("receiving a packet...")
-# rx_packet = nc_socket.recv()
-# print("Received packet:")
-# rx_packet.show()
-#
-# print("\nSniff some traffic:\n")
-# sniffed_packets = nc_socket.sniff(timeout=5, count=10)
-# print(sniffed_packets)
-# sniffed_packets[0].show()
-
-# # # # # # # # # # # # # # # # #  STEP 1  # # # # # # # # # # # # # # # # #
-# On CAN networks, ISOTP (ISO-15765 Transport Protocol) is a communication
-# protocol used in the automotive industry to transmit data. It is designed to
-# provide a # reliable and efficient way to transfer large amounts of data,
-# such as software updates and diagnostic data.
-
-# There are four special frames:
-#   - single frame
-#   - first frame
-#   - consecutive frame
-#   - flow control frame
-
-# It is used to address every individual ECU in the entire vehicle network.
-# The gateway ECU will route ISOTP packets into the right subnet automatically.
-# ISOTP supports several addressing schemes. Unfortunately, every OEM uses
-# different addressing schemes: a good practice is to scan for ECUs with normal
-# addressing with a CAN identifier range from 0x500-0x7ff.
-
-
-print("\nPLAYING WITH ISO-TP...", end="")
-print("SKIPPED!")
-
-# isotp_packet = ISOTP(b"super packet for isotp transport protocol",
-#                      tx_id=0x111, rx_id=0x222)
-# print("Example of packet:\n")
-# isotp_packet.show()
-#
-# print("underlying frames:\n")
-# can_frames = isotp_packet.fragment()
-# for can_frame in can_frames:
-#     ISOTPHeader(bytes(can_frame)).show()
-#
-# print("reconstruct the message:\n")
-# builder = ISOTPMessageBuilder()
-# builder.feed(can_frames)
-# print("message builder length: ", end="")
-# print(len(builder))
-# isotp_msg = builder.pop()
-# print(repr(isotp_msg))
-# print("message builder length: ", end="")
-# print(len(builder))
-
-
-# To identify all possible communication endpoints and their supported
-# application layer protocols, a transport layer scan has to be performed
-# first.
-# IDS will immediately see illegitimate traffic. This may disturb
-# safety-critical and real-time communication
-# Procedure:
-#   - Choose an addressing scheme
-#   - Craft FF (first-frame) with payload length e.g. 100
-#   - Send FF with all possible addresses according to the addressing scheme
-#   - Listen for FC (flow-control) frames according to the chosen addressing
-#     scheme
-#   - If FC is detected, obtain all address information and information about
-#     padding from the last FF and the received FC (e.g. source address SA,
-#     target address TA, address extension AE, addressing scheme, padding)
-#
-# One could also perform passive scanning, not producing additional load
-
-print("\nISO-TP SCANNING...", end="")
-print("SKIPPED!")
-# isotp_scan_socket = isotp_scan (
-#                                NativeCANSocket(channel="vcan0"),
-#                                scan_range=range(0x120, 0x130),
-#                                can_interface="vcan0"
-#                                )
-#
-# print(isotp_scan_socket)
-
-
-
-# # # # # # # # # # # # # # # # #  STEP 2  # # # # # # # # # # # # # # # # #
-# On every identified ISOTP Endpoint, a UDS scan can be performed to identify
-# the attack surface of this ECU (Endpoint).
-
-print("\nUDS SCANNING...", end="")
-print("SKIPPED!")
-
-# let's instantiate a socket with basecls=UDS
-
-# sock = ISOTPNativeSocket("vcan0",
-#                          tx_id=0x6f1,
-#                          rx_id=0x610,
-#                          ext_address=0x10,
-#                          rx_ext_address=0xf1,
-#                          basecls=UDS
-#                          )
-
-# create a packet and send it
-
-# read_by_id_pkt = UDS()/UDS_RDBI(identifiers=[0x172a])
-# print("packet to be sent:\n")
-# print(repr(read_by_id_pkt))
-#
-# try:
-#     rx = sock.sr1(read_by_id_pkt, timeout=1)
-# except:
-#     print("Something went wrong, an exception occurred :(")
-# else:
-#     if rx is not None:
-#         rx.show()
-#
-# print("\nexploring possible UDS packets:\n")
-# print("SKIPPED!")
-# explore("scapy.contrib.automotive.uds")
-
-# print("\ndetails of UDS_SA:\n")
-# ls(UDS_SA)
-
-# print("\n sending tester present:\n")
-# tps = UDS_TesterPresentSender(sock)
-# tps.start()
-# print("...stuff in here...")
-# tps.stop()
-# print("\n tester present finished.\n")
-
-
-# scanning
-# print("\nStarting the UDS service enumerator (scanning)\n")
-# uds_scanner = UDS_Scanner(sock, test_cases=[UDS_ServiceEnumerator])
-# uds_scanner.scan(timeout=10)
-# uds_scanner.show_testcases()
-
-
-# # # # # # # # # # # # # # # # #  STEP 3  # # # # # # # # # # # # # # # # #
-# also OBD-II scanning can be performed
-
+if len(sys.argv) > 1:
+    if sys.argv[1] == "-v":
+        utility.VERBOSE_DEBUG = True
 
 
 # # # # # # # # # # # # # # # # #  STEP 4  # # # # # # # # # # # # # # # # #
@@ -242,7 +23,8 @@ print("SKIPPED!")
 
 # conf.contribs['CAN']['remove-padding'] = True
 
-CAN_IDENTIFIER = 0x1FFFFFFF # TO DO must be set properly
+CAN_IDENTIFIER = 0x1FFFFFFF # TO DO must be set properly, using scanning
+                            # modules
 
 print("\nBLACK-BOX TESTING\n")
 print("First, we test for length and packet format with TP CAN message. \n"
@@ -285,39 +67,54 @@ for i in range(0,7):
 print("Checking passed tests...\n")
 for idx, flag in enumerate(passed):
     if flag:
-        print(f"Positive response from payload: {payloads[idx]} with length: {lengths[idx]}")
+        print_success(f"Positive response from payload: {payloads[idx]} "
+                f"with length: {lengths[idx]}")
 
 def send_selected_tester_present(socket, passed_tests):
-    for i in passed_tests:
-        if i is True:
+    for i, flag in enumerate(passed_tests):
+        if flag is True:
             selected_request = CAN(identifier=CAN_IDENTIFIER,
                                     length=lengths[i],
                                     data=payloads[i])
-            ans = socket.sr(selected_request, verbose=0)[0]
-            if ans[0] and ans[0].answer.data[0] != 0x7E:
+            if VERBOSE_DEBUG:
+                print("Waiting for tester present...")
+            print(i)
+            tp_ans = socket.sr(selected_request, verbose=0)[0]
+            if tp_ans[0] and tp_ans[0].answer.data[0] == 0x7E:
                 return True
             else:
                 continue
-    print("Something went wrong in TesterPresent probe\n")
+    print_error("Something went wrong in TesterPresent probe\n")
     return False
-
-
+def check_response_code(req_code, resp_code):
+    if resp_code == req_code + 0x40:
+        print_success("Positive response found")
+        return True
+    elif resp_code == 0x12:
+        print_error("error: subFunctionNotSupported")
+    elif resp_code == 0x13:
+        print_error("error: incorrectMessageLengthOrInvalidFormat")
+        print("WARNING: possible implementation error")
+    elif resp_code == 0x22:
+        print_error("error: conditionsNotCorrect")
+    elif resp_code == 0x33:
+        print_error("error: securityAccessDenied")
+    else:
+        print_error("error: unexpected response")
+    return False
 
 # all the subsequent tests must be set according to the previous one
 
 # bruteforce test passed TO DO
 
 # TEST for discovering supported diagnostic sessions (TEST_DDS)
-print(
-      "#####################################################################\n"
-      "#####################################################################\n"
-      "############################## NEW TEST #############################\n"
-      "#####################################################################\n"
-      "#####################################################################\n"
-      )
+print_new_test_banner()
+
 if not send_selected_tester_present(sock_vcan0, passed):
     exit()
+print_success("tester present correctly received")
 
+print("Starting TEST_DDS\n")
 payload = b'\x10'
 for i in range(0, 0xFF+1):
     fuzz_value = payload + i.to_bytes(1, 'little')
@@ -328,19 +125,34 @@ for i in range(0, 0xFF+1):
         continue
 
     response_code = ans_dds_test[0].answer.data[0]
-    if response_code == 0x50:
-        print("Positive response found")
-    elif response_code == 0x12:
-        print("error: subFunctionNotSupported")
-    elif response_code == 0x13:
-        print("error: incorrectMessageLengthOrInvalidFormat")
-        print("WARNING: possible implementation error")
-    elif response_code == 0x22:
-        print("error: conditionsNotCorrect")
-    else:
-        pass
+    check_response_code(0x10, response_code)
 
-print("Fuzzing process finished.\n")
+print("TEST_DSS finished.\n")
+
+
+# TEST reset the ECU (TEST_RECU)
+# request and ECU hard reset by UDS service 0x11
+print_new_test_banner()
+
+continue_subtest = True
+payload = b'\x11'
+for i in range(0, 0xFF+1):
+    fuzz_value = payload + i.to_bytes(1, 'little')
+    print(f"fuzz value: {fuzz_value}")
+    if i < 0x06:
+        if not send_selected_tester_present(sock_vcan0, passed):
+            exit()
+        print_success("tester present correctly received")
+    recu_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=fuzz_value)
+    ans_recu_test = sock_vcan0.sr(recu_pkt, verbose=0)[0]
+    response_code = ans_recu_test[0].answer.data[0]
+    if check_response_code(0x11, response_code):
+        break
+
+print("FINISHED.")
+
+
+
 
 
 
