@@ -119,6 +119,10 @@ for i in range(0, 0xFF+1):
         break
 print("TEST_RECU finished.\n")
 
+
+# test for measuring RNBG entropy TO DO
+
+
 #################################  TEST_  #################################
 print_new_test_banner()
 print("Starting TEST_\n")
