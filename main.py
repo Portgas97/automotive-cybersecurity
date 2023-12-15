@@ -70,51 +70,20 @@ for idx, flag in enumerate(passed):
         print_success(f"Positive response from payload: {payloads[idx]} "
                 f"with length: {lengths[idx]}")
 
-def send_selected_tester_present(socket, passed_tests):
-    for i, flag in enumerate(passed_tests):
-        if flag is True:
-            selected_request = CAN(identifier=CAN_IDENTIFIER,
-                                    length=lengths[i],
-                                    data=payloads[i])
-            if VERBOSE_DEBUG:
-                print("Waiting for tester present...")
-            print(i)
-            tp_ans = socket.sr(selected_request, verbose=0)[0]
-            if tp_ans[0] and tp_ans[0].answer.data[0] == 0x7E:
-                return True
-            else:
-                continue
-    print_error("Something went wrong in TesterPresent probe\n")
-    return False
-def check_response_code(req_code, resp_code):
-    if resp_code == req_code + 0x40:
-        print_success("Positive response found")
-        return True
-    elif resp_code == 0x12:
-        print_error("error: subFunctionNotSupported")
-    elif resp_code == 0x13:
-        print_error("error: incorrectMessageLengthOrInvalidFormat")
-        print("WARNING: possible implementation error")
-    elif resp_code == 0x22:
-        print_error("error: conditionsNotCorrect")
-    elif resp_code == 0x33:
-        print_error("error: securityAccessDenied")
-    else:
-        print_error("error: unexpected response")
-    return False
-
 # all the subsequent tests must be set according to the previous one
+
 
 # bruteforce test passed TO DO
 
-# TEST for discovering supported diagnostic sessions (TEST_DDS)
+#################################  TEST_DDS  #################################
+# Test for discovering supported diagnostic sessions (TEST_DDS)
 print_new_test_banner()
+print("Starting TEST_DDS\n")
 
 if not send_selected_tester_present(sock_vcan0, passed):
     exit()
 print_success("tester present correctly received")
 
-print("Starting TEST_DDS\n")
 payload = b'\x10'
 for i in range(0, 0xFF+1):
     fuzz_value = payload + i.to_bytes(1, 'little')
@@ -126,13 +95,13 @@ for i in range(0, 0xFF+1):
 
     response_code = ans_dds_test[0].answer.data[0]
     check_response_code(0x10, response_code)
-
 print("TEST_DSS finished.\n")
 
-
-# TEST reset the ECU (TEST_RECU)
+#################################  TEST_RECU  #################################
+# Test reset of the ECU (TEST_RECU)
 # request and ECU hard reset by UDS service 0x11
 print_new_test_banner()
+print("Starting TEST_RECU\n")
 
 continue_subtest = True
 payload = b'\x11'
@@ -148,10 +117,11 @@ for i in range(0, 0xFF+1):
     response_code = ans_recu_test[0].answer.data[0]
     if check_response_code(0x11, response_code):
         break
+print("TEST_RECU finished.\n")
 
-print("FINISHED.")
-
-
+#################################  TEST_  #################################
+print_new_test_banner()
+print("Starting TEST_\n")
 
 
 
