@@ -36,16 +36,57 @@ conf.contribs['CANSocket'] = {'use-python-can': False} # default
 # conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
 
 VERBOSE_DEBUG = False
+EXTRA_VERBOSE_DEBUG = False
+CAN_IDENTIFIER = 0x1FFFFFFF # TO DO must be set properly, using scanning
+                            # modules
+
+lengths = [2, 2, 1, 2, 2, 2, 1]
+payloads = [b'\x3E\x00\x00\x00\x00\x00\x00',
+            b'\x3E\x80\x00\x00\x00\x00\x00',
+            b'\x3E\x00\x00\x00\x00\x00\x00',
+            b'\x3E\x80\x00\x00\x00\x00\x00',
+            b'\x3E\x00',
+            b'\x3E\x80',
+            b'\x3E']
+passed = [False, False, False, False, False, False, False]
+
+
+def send_selected_tester_present(socket, passed_tests):
+    global VERBOSE_DEBUG, CAN_IDENTIFIER, lengths, payloads
+    for i, flag in enumerate(passed_tests):
+        if flag is True:
+            selected_request = CAN(identifier=CAN_IDENTIFIER,
+                                    length=lengths[i],
+                                    data=payloads[i])
+            if VERBOSE_DEBUG:
+                print("Waiting for tester present...")
+            print_debug(i)
+            tp_ans = socket.sr(selected_request, verbose=0)[0]
+            if tp_ans[0] and tp_ans[0].answer.data[0] == 0x7E:
+                return True
+            else:
+                continue
+    print_error("Something went wrong in TesterPresent probe\n")
+    return False
+
 
 def print_error(error_message):
+    global VERBOSE_DEBUG
     if VERBOSE_DEBUG is True:
         print(Fore.RED + error_message + Style.RESET_ALL)
 
 def print_success(message):
+    global VERBOSE_DEBUG
     if VERBOSE_DEBUG is True:
         print(Fore.GREEN + message + Style.RESET_ALL)
 
+def print_debug(message):
+    global EXTRA_VERBOSE_DEBUG
+    if EXTRA_VERBOSE_DEBUG is True:
+        print(message)
+
 def print_new_test_banner():
+    global VERBOSE_DEBUG
     if VERBOSE_DEBUG is True:
         print(
             "#####################################################################\n"
@@ -55,22 +96,6 @@ def print_new_test_banner():
             "#####################################################################\n"
         )
 
-def send_selected_tester_present(socket, passed_tests):
-    for i, flag in enumerate(passed_tests):
-        if flag is True:
-            selected_request = CAN(identifier=CAN_IDENTIFIER,
-                                    length=lengths[i],
-                                    data=payloads[i])
-            if VERBOSE_DEBUG:
-                print("Waiting for tester present...")
-            print(i)
-            tp_ans = socket.sr(selected_request, verbose=0)[0]
-            if tp_ans[0] and tp_ans[0].answer.data[0] == 0x7E:
-                return True
-            else:
-                continue
-    print_error("Something went wrong in TesterPresent probe\n")
-    return False
 
 def check_response_code(req_code, resp_code):
     if resp_code == req_code + 0x40:
@@ -168,3 +193,42 @@ def check_response_code(req_code, resp_code):
     else:
         print_error("error: unexpected response")
     return False
+
+
+def print_menu():
+    print( Fore.LIGHTRED_EX +
+            "          _______         \n"
+            "         //  ||\ \        \n"
+            "   _____//___||_\ \___    \n"
+            "   )  _          _    \   \n"
+            "   |_/ \________/ \___|   \n"
+            "  ___\_/________\_/______ \n"
+           + Style.RESET_ALL
+        )
+
+    print(  "Please, choose one of the following command:           \n")
+    print(
+              Fore.LIGHTRED_EX + "\t help" + Style.RESET_ALL +
+              ": print this menu\n"
+
+            + Fore.LIGHTRED_EX + "\t quit" + Style.RESET_ALL +
+              ": program exit\n"
+
+            + Fore.LIGHTRED_EX + "\t clear" + Style.RESET_ALL +
+              ": clear screen and print command menu\n"
+
+            + Fore.LIGHTRED_EX + "\t test_tp" + Style.RESET_ALL +
+              ": tester present probe (establish correct packet format)\n"
+
+            + Fore.LIGHTRED_EX + "\t test_dds" + Style.RESET_ALL +
+              ": missing text\n"
+
+            + Fore.LIGHTRED_EX + "\t test_recu" + Style.RESET_ALL +
+              ": missing text\n"
+
+            + Fore.LIGHTRED_EX + "\t test_rsdi" + Style.RESET_ALL +
+              ": missing text\n"
+
+            + Fore.LIGHTRED_EX + "\t other" + Style.RESET_ALL +
+              ": ... TO DO\n"
+            )
