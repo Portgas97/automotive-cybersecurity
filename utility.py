@@ -75,6 +75,7 @@ def print_error(error_message):
     if VERBOSE_DEBUG is True:
         print(Fore.RED + error_message + Style.RESET_ALL)
 
+
 def print_success(message):
     global VERBOSE_DEBUG
     if VERBOSE_DEBUG is True:
@@ -84,6 +85,7 @@ def print_debug(message):
     global EXTRA_VERBOSE_DEBUG
     if EXTRA_VERBOSE_DEBUG is True:
         print(message)
+
 
 def print_new_test_banner():
     global VERBOSE_DEBUG
@@ -232,3 +234,46 @@ def print_menu():
             + Fore.LIGHTRED_EX + "\t other" + Style.RESET_ALL +
               ": ... TO DO\n"
             )
+
+def byte_length(hex_int):
+    return (hex_int.bit_length() + 7) // 8
+
+
+# TO DO creare una create_packet separata
+# TO DO creare una send_and_receive
+# TO DO il fuzzing si farà fuori, tipo burst_packets nel caso si possano
+# mandare tutti di fila, nel caso di test come rsda dopo ogni pacchetto
+# bisognare chiamare un'altra funzione, quindi questa funzione qui sotto va
+# scomposta.
+
+def create_and_send_packet(can_socket,
+                           service,
+                           fuzz_range,
+                           pkt_length,
+                           can_id=CAN_IDENTIFIER):
+    print_debug(f"passed args: "
+                f"can_socket: {can_socket}, service: {service}, fuzz_range: "
+                f"{fuzz_range}, pkt_length: {pkt_length}, can_id: {can_id}")
+
+    for idx in range(0, fuzz_range + 1):
+        print_debug(f"\nidx: {idx}")
+        byte_len = byte_length(fuzz_range)
+        print_debug(f"byte_len: {byte_len}")
+        print_debug(f"hex_service: {service.to_bytes(1,'little')}")
+        print_debug(f"idx_hex:{idx.to_bytes(1, 'little')}")
+        fuzz_value = (service.to_bytes(1, 'little') +
+                      idx.to_bytes(byte_len, 'little'))
+        print_debug(f"fuzz_value: {fuzz_value}")
+        test_pkt = CAN(identifier=can_id,
+                       length=pkt_length,
+                       data=fuzz_value)
+        # print_debug(f"test_pkt: {test_pkt.show()}")
+        print_debug("waiting for test packet...")
+        test_ans = can_socket.sr(test_pkt, verbose=0)[0]
+        if not test_ans[0]:
+            continue
+
+        response_code = test_ans[0].answer.data[0]
+        print_debug(f"service: {service}")
+        if not check_response_code(service, response_code):
+            print_error("ERROR: wrong packet response\n")

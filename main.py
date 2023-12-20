@@ -22,11 +22,18 @@ def main():
             utility.EXTRA_VERBOSE_DEBUG = True
 
     sock_vcan0 = ""
+    skip_input = False
     while True:
-        print_menu()
-        command = input("Enter command: ")
+        if skip_input:
+            print_menu()
+            command = input("Enter command: ")
+            command = command.strip()
+        skip_input = False
 
-        if command == "help":
+        if command == "":
+            continue
+
+        elif command == "help":
             continue
 
         elif command == "quit":
@@ -50,6 +57,18 @@ def main():
         elif command == "test_rsdi":
             exec_test_rsdi(sock_vcan0)
 
+        elif command == "test_rsda":
+            session = input("Enter diagnostic session for the test (hex "
+                            "format, null for fuzzing): ").strip()
+            if session == "":
+                exec_test_rsda(sock_vcan0)
+            elif 0x00 < int(session) < 0xFF:
+                exec_test_rsda(sock_vcan0, int(session).to_bytes())
+            else:
+                print("wrong session inserted, try again")
+                skip_input = True
+        elif command == "":
+            pass
         elif command == "":
             pass
 

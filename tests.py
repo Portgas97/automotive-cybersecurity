@@ -45,39 +45,7 @@ def exec_test_tp():
 
 # bruteforce test passed TO DO
 
-def byte_length(hex_int):
-    return (hex_int.bit_length() + 7) // 8
 
-def create_and_send_packet(can_socket,
-                           service,
-                           fuzz_range,
-                           pkt_length,
-                           can_id=CAN_IDENTIFIER):
-    print_debug(f"passed args: "
-                f"can_socket: {can_socket}, service: {service}, fuzz_range: "
-                f"{fuzz_range}, pkt_length: {pkt_length}, can_id: {can_id}")
-
-    for idx in range(0, fuzz_range + 1):
-        print_debug(f"\nidx: {idx}")
-        byte_len = byte_length(fuzz_range)
-        print_debug(f"byte_len: {byte_len}")
-        print_debug(f"hex_service: {service.to_bytes(1,'little')}")
-        print_debug(f"idx_hex:{idx.to_bytes(1, 'little')}")
-        fuzz_value = (service.to_bytes(1, 'little') +
-                      idx.to_bytes(byte_len, 'little'))
-        print_debug(f"fuzz_value: {fuzz_value}")
-        test_pkt = CAN(identifier=can_id,
-                       length=pkt_length,
-                       data=fuzz_value)
-        # print_debug(f"test_pkt: {test_pkt.show()}")
-        print_debug("waiting for test packet...")
-        test_ans = can_socket.sr(test_pkt, verbose=0)[0]
-        if not test_ans[0]:
-            continue
-
-        response_code = test_ans[0].answer.data[0]
-        print_debug(f"service: {service}")
-        check_response_code(service, response_code)
 
 
 #################################  TEST_DDS  #################################
@@ -140,7 +108,27 @@ def exec_test_rsdi(can_socket):
         exit()
     print_success("tester present correctly received")
 
-    create_and_send_packet(can_socket, b'0x22', 0xFFFF, 3)
+    create_and_send_packet(can_socket, 0x22, 0xFFFF, 3)
     print("TEST_RSDI finished.\n")
+
+
+#################################  TEST_RSDA  #################################
+def exec_test_rsda(can_socket, session=b''):
+    print_new_test_banner()
+    print("Starting TEST_RSDA\n")
+
+    if not send_selected_tester_present(can_socket, passed):
+        exit()
+    print_success("tester present correctly received")
+
+    if session != b'':
+        payload = b'\x10' + session
+        rsda_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=payload)
+        ans_rsda_test = can_socket.sr(rsda_pkt, verbose=0)[0]
+        response_code = ans_rsda_test[0].answer.data[0]
+        if not check_response_code(0x11, response_code):
+            print_error("ERROR in packet response")
+    else: # fuzzing the session
+        create_and_send_packet(can_socket, 0x10, 0xFF, 2)
 
 
