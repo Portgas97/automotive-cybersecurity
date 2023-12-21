@@ -4,7 +4,15 @@ import sys
 from utility import *
 
 #################################  TEST_TP  #################################
-def exec_test_tp():
+def exec_test_tp(can_socket: NativeCANSocket) -> None:
+    """
+    Several tester present packet formats probing.
+
+    This function modifies the flag global variable setting True in the
+    position relative to the passed test, based on sr() response parsing.
+    :param can_socket: socket connected to the CAN (or vcan) interface
+    :return: -
+    """
     print("\nBLACK-BOX TESTING\n")
     print("First, we test for length and packet format with TP CAN message. \n"
           "The following packets are sent (note that probably the underlying\n"
@@ -13,16 +21,14 @@ def exec_test_tp():
     ans_list = [[] for i in range(0,7)]
     unans_list = [[] for i in range(0,7)]
 
-    sock_vcan0 = NativeCANSocket(channel="vcan0")
-
     # ID is a value on 29 bits
     # testing for different lengths and data values
     for i in range(0,7):
         tp = CAN(identifier=CAN_IDENTIFIER,
                  length=lengths[i],
                  data=payloads[i])
-        hexdump(tp)
-        ans, unans = sock_vcan0.sr(tp, verbose=0)
+        # hexdump(tp)
+        ans, unans = can_socket.sr(tp, verbose=0)
         ans_list[i].append(ans)
         unans_list[i].append(unans)
 
@@ -40,44 +46,54 @@ def exec_test_tp():
             print_success(f"Positive response from payload: {payloads[idx]} "
                     f"with length: {lengths[idx]}")
 
-    return sock_vcan0
 
 
 # bruteforce test passed TO DO
 
 
 
-
 #################################  TEST_DDS  #################################
 # Test for discovering supported diagnostic sessions (TEST_DDS)
-def exec_test_dds(can_socket):
+def exec_test_dds(can_socket: NativeCANSocket) -> None:
+    """
+    It exploits UDS 0x10 and fuzzing to discover supported diagnostic sessions.
+
+    :param can_socket: socket connected to the CAN (or vcan) interface
+    :return: -
+    """
     print_new_test_banner()
     print("Starting TEST_DDS\n")
 
     if not send_selected_tester_present(can_socket, passed):
-        exit()
+        print_error("ERROR: tp failed!")
     print_success("tester present correctly received")
 
     create_and_send_packet(can_socket, 0x10, 0xFF, 2)
     print("TEST_DSS finished.\n")
 
-
 #################################  TEST_RECU  #################################
-# Test reset of the ECU (TEST_RECU)
-# request and ECU hard reset by UDS service 0x11
+def exec_test_recu(can_socket: NativeCANSocket) -> None:
+    """
+    It requests and ECU hard reset by UDS service 0x11.
 
-def exec_test_recu(can_socket):
+    This test shall be repeated for each active diagnostic session.
+    :param can_socket: socket connected to the CAN (or vcan) interface
+    :return: -
+    """
     print_new_test_banner()
     print("Starting TEST_RECU\n")
 
+    # TO DO questo test non è necessario farlo tanto complicato
+    # è un normalissimo fuzzing
     continue_subtest = True
     payload = b'\x11'
     for i in range(0, 0xFF + 1):
         fuzz_value = payload + i.to_bytes(1, 'little')
         print_debug(f"fuzz value: {fuzz_value}")
-        if i < 0x06:
+        if i < 0x05:
             if not send_selected_tester_present(can_socket, passed):
-                exit()
+                continue # TO DO ho modificato qui per sbaglio così forse va
+                # bene ????
             print_success("tester present correctly received")
         recu_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=fuzz_value)
         ans_recu_test = can_socket.sr(recu_pkt, verbose=0)[0]
@@ -86,26 +102,29 @@ def exec_test_recu(can_socket):
             break
     print("TEST_RECU finished.\n")
 
-
 #################################  TEST_  #################################
 # test for measuring RNBG entropy TO DO
-
 
 #################################  TEST_  #################################
 # test for control ECU communication TO DO
 
-
 #################################  TEST_  #################################
 # test for control link baud rate TO DO
 
-
 #################################  TEST_RSDI  #################################
-def exec_test_rsdi(can_socket):
+def exec_test_rsdi(can_socket: NativeCANSocket) -> None:
+    """
+    It requests an ECU data read, exploiting the 0x22 UDS service.
+
+    This test shall be repeated for each supported diagnostic session.
+    :param can_socket: socket connected to the CAN (or vcan) interface
+    :return: -
+    """
     print_new_test_banner()
     print("Starting TEST_RSDI\n")
 
     if not send_selected_tester_present(can_socket, passed):
-        exit()
+        print_error("ERROR: tp failed!")
     print_success("tester present correctly received")
 
     create_and_send_packet(can_socket, 0x22, 0xFFFF, 3)
@@ -113,12 +132,20 @@ def exec_test_rsdi(can_socket):
 
 
 #################################  TEST_RSDA  #################################
-def exec_test_rsda(can_socket, session=b''):
+def exec_test_rsda(can_socket: NativeCANSocket, session: bytes = b'') -> None:
+    """
+    It requests an ECU data read by memory address, service 0x23.
+
+    This test shall be repeated for each supported diagnostic session.
+    :param can_socket: socket connected by the CAN (or vcan) interface
+    :param session:
+    :return: -
+    """
     print_new_test_banner()
     print("Starting TEST_RSDA\n")
 
     if not send_selected_tester_present(can_socket, passed):
-        exit()
+        print_error("ERROR: tp failed!")
     print_success("tester present correctly received")
 
     if session != b'':

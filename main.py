@@ -21,9 +21,10 @@ def main():
         elif sys.argv[1] == "-vv":
             utility.EXTRA_VERBOSE_DEBUG = True
 
-    sock_vcan0 = ""
+    sock_vcan0 = NativeCANSocket(channel="vcan0")
     skip_input = False
     while True:
+        command: str = ""
         if skip_input:
             print_menu()
             command = input("Enter command: ")
@@ -46,7 +47,7 @@ def main():
 
         # all tests must be set according to this one
         elif command == "test_tp":
-            sock_vcan0 = exec_test_tp()
+            exec_test_tp(sock_vcan0)
 
         elif command == "test_dds":
             exec_test_dds(sock_vcan0)

@@ -1,6 +1,8 @@
 # from scapy.config import conf
 
 import sys  # accessing cmd line argments
+import atexit
+import signal
 from colorama import Fore, Style  # coloring output
 
 from scapy.utils import hexdump
@@ -37,8 +39,7 @@ conf.contribs['CANSocket'] = {'use-python-can': False} # default
 
 VERBOSE_DEBUG = False
 EXTRA_VERBOSE_DEBUG = False
-CAN_IDENTIFIER = 0x1FFFFFFF # TO DO must be set properly, using scanning
-                            # modules
+CAN_IDENTIFIER = 0x1FFFFFFF # TO DO must be set properly, using scanning modules
 
 lengths = [2, 2, 1, 2, 2, 2, 1]
 payloads = [b'\x3E\x00\x00\x00\x00\x00\x00',
@@ -50,8 +51,45 @@ payloads = [b'\x3E\x00\x00\x00\x00\x00\x00',
             b'\x3E']
 passed = [False, False, False, False, False, False, False]
 
+def handle_exit() -> None:
+    """
+    TO DO Operations to be performed at program exit.
 
-def send_selected_tester_present(socket, passed_tests):
+    :return: -
+    """
+    print("exit_handler() invoked")
+
+atexit.register(handle_exit())
+
+def handle_sigterm() -> None:
+    """
+    TO DO Operations to be performed at sigterm.
+
+    :return: -
+    """
+    print("handle_sigterm() invoked")
+
+def handle_sigint() -> None:
+    """
+    TO DO Operations to be performed at sigint.
+
+    :return: -
+    """
+    print("handle_sigint() invoked")
+
+signal.signal(signal.SIGTERM, handle_sigterm())
+signal.signal(signal.SIGINT, handle_sigint())
+
+def send_selected_tester_present(socket: NativeCANSocket,
+                                 passed_tests: list[bool]
+                                 ) -> bool:
+    """
+    Sends several TP packets, based on previously determined conditions.
+
+    :param socket: the socket connected to the can or vcan interface
+    :param passed_tests: array of bools, to retrieve info of passed TP formats
+    :return: True at the first positive response, False otherwise.
+    """
     global VERBOSE_DEBUG, CAN_IDENTIFIER, lengths, payloads
     for i, flag in enumerate(passed_tests):
         if flag is True:
@@ -69,25 +107,45 @@ def send_selected_tester_present(socket, passed_tests):
     print_error("Something went wrong in TesterPresent probe\n")
     return False
 
+def print_error(error_message: str) -> None:
+    """
+    Prints a red error message, only if verbose output is set.
 
-def print_error(error_message):
+    :param error_message: string to print to the console, error information
+    :return: -
+    """
     global VERBOSE_DEBUG
     if VERBOSE_DEBUG is True:
         print(Fore.RED + error_message + Style.RESET_ALL)
 
+def print_success(message: str) -> None:
+    """
+    Prints a green message to the console, if verbose output is set.
 
-def print_success(message):
+    :param message: information to print to the console
+    :return: -
+    """
     global VERBOSE_DEBUG
     if VERBOSE_DEBUG is True:
         print(Fore.GREEN + message + Style.RESET_ALL)
 
-def print_debug(message):
+def print_debug(message: str) -> None:
+    """
+    Prints general information to the console, only if strong verbosity is set.
+
+    :param message: information to print to the console
+    :return: -
+    """
     global EXTRA_VERBOSE_DEBUG
     if EXTRA_VERBOSE_DEBUG is True:
         print(message)
 
+def print_new_test_banner() -> None:
+    """
+    Prints a test separator to the console for readability.
 
-def print_new_test_banner():
+    :return: -
+    """
     global VERBOSE_DEBUG
     if VERBOSE_DEBUG is True:
         print(
@@ -98,8 +156,14 @@ def print_new_test_banner():
             "#####################################################################\n"
         )
 
+def check_response_code(req_code: int, resp_code: int) -> bool:
+    """
+    It checks for UDS positive or negative response, displaying relative info.
 
-def check_response_code(req_code, resp_code):
+    :param req_code: UDS service request identifier
+    :param resp_code: UDS service response identifier
+    :return: True in case of positive response, False otherwise
+    """
     if resp_code == req_code + 0x40:
         print_success("Positive response found")
         return True
@@ -196,8 +260,12 @@ def check_response_code(req_code, resp_code):
         print_error("error: unexpected response")
     return False
 
+def print_menu() -> None:
+    """
+    Prints banner and menu options.
 
-def print_menu():
+    :return: -
+    """
     print( Fore.LIGHTRED_EX +
             "          _______         \n"
             "         //  ||\ \        \n"
@@ -235,7 +303,13 @@ def print_menu():
               ": ... TO DO\n"
             )
 
-def byte_length(hex_int):
+def byte_length(hex_int: int) -> int:
+    """
+    It computes how many bytes are necessary for a given hex integer value.
+
+    :param hex_int: integer value in hexadecimal representation
+    :return: the number of necessary bytes to represent the passed value
+    """
     return (hex_int.bit_length() + 7) // 8
 
 
@@ -246,11 +320,22 @@ def byte_length(hex_int):
 # bisognare chiamare un'altra funzione, quindi questa funzione qui sotto va
 # scomposta.
 
-def create_and_send_packet(can_socket,
-                           service,
-                           fuzz_range,
-                           pkt_length,
-                           can_id=CAN_IDENTIFIER):
+def create_and_send_packet(can_socket: NativeCANSocket,
+                           service: int,
+                           fuzz_range: int,
+                           pkt_length: int,
+                           can_id: int =CAN_IDENTIFIER
+                           ) -> None:
+    """
+    It builds a CAN packet given the args, sends it and parse the response.
+
+    :param can_socket: socket connected to the can interface
+    :param service: UDS service to send
+    :param fuzz_range: range for payload value fuzzing
+    :param pkt_length: length of the payload
+    :param can_id: CAN identifier
+    :return: -
+    """
     print_debug(f"passed args: "
                 f"can_socket: {can_socket}, service: {service}, fuzz_range: "
                 f"{fuzz_range}, pkt_length: {pkt_length}, can_id: {can_id}")
@@ -277,3 +362,6 @@ def create_and_send_packet(can_socket,
         print_debug(f"service: {service}")
         if not check_response_code(service, response_code):
             print_error("ERROR: wrong packet response\n")
+
+
+
