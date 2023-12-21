@@ -51,7 +51,7 @@ payloads = [b'\x3E\x00\x00\x00\x00\x00\x00',
             b'\x3E']
 passed = [False, False, False, False, False, False, False]
 
-def handle_exit() -> None:
+def handle_exit():
     """
     TO DO Operations to be performed at program exit.
 
@@ -59,9 +59,9 @@ def handle_exit() -> None:
     """
     print("exit_handler() invoked")
 
-atexit.register(handle_exit())
+# atexit.register(handle_exit())
 
-def handle_sigterm() -> None:
+def handle_sigterm():
     """
     TO DO Operations to be performed at sigterm.
 
@@ -69,7 +69,7 @@ def handle_sigterm() -> None:
     """
     print("handle_sigterm() invoked")
 
-def handle_sigint() -> None:
+def handle_sigint():
     """
     TO DO Operations to be performed at sigint.
 
@@ -77,11 +77,11 @@ def handle_sigint() -> None:
     """
     print("handle_sigint() invoked")
 
-signal.signal(signal.SIGTERM, handle_sigterm())
-signal.signal(signal.SIGINT, handle_sigint())
+# signal.signal(signal.SIGTERM, handle_sigterm())
+# signal.signal(signal.SIGINT, handle_sigint())
 
 def send_selected_tester_present(socket: NativeCANSocket,
-                                 passed_tests: list[bool]
+                                 passed_tests: list # list[bool] produce error
                                  ) -> bool:
     """
     Sends several TP packets, based on previously determined conditions.
