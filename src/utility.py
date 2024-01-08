@@ -324,6 +324,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
                            service: int,
                            fuzz_range: int,
                            pkt_length: int,
+                           multiframe: bool =False,
                            can_id: int =CAN_IDENTIFIER
                            ) -> None:
     """
@@ -333,12 +334,14 @@ def create_and_send_packet(can_socket: NativeCANSocket,
     :param service: UDS service to send
     :param fuzz_range: range for payload value fuzzing
     :param pkt_length: length of the payload
+    :param multiframe: if True tells the function to handle the multiframe case
     :param can_id: CAN identifier
     :return: -
     """
     print_debug(f"passed args: "
                 f"can_socket: {can_socket}, service: {service}, fuzz_range: "
-                f"{fuzz_range}, pkt_length: {pkt_length}, can_id: {can_id}")
+                f"{fuzz_range}, pkt_length: {pkt_length}, multiframe: "
+                f"{multiframe}, can_id: {can_id}")
 
     for idx in range(0, fuzz_range + 1):
         print_debug(f"\nidx: {idx}")
@@ -354,10 +357,22 @@ def create_and_send_packet(can_socket: NativeCANSocket,
                        data=fuzz_value)
         # print_debug(f"test_pkt: {test_pkt.show()}")
         print_debug("waiting for test packet...")
-        test_ans = can_socket.sr(test_pkt, verbose=0)[0]
-        if not test_ans[0]:
-            continue
+        if not multiframe:
+            test_ans = can_socket.sr(test_pkt, verbose=0)[0]
+            if not test_ans[0]:
+                continue
+        else:
+            test_ans = can_socket.sr1(test_pkt, verbose=0)
+            # TO DO check if multiframe, otherwise error
 
+            flow_control_pkt = CAN(identifier=can_id,
+                                   length=30,
+                                   data=b'\x00\x00') # TO DO there is
+            # another format possibility: b'\x30\x00\x00\x00\x00\x00\x00\x00'
+            rf = can_socket.sr(flow_control_pkt, verbose=0)[0]
+
+        # TO DO these code below must be merged with the 'if-else' branch
+        # above someway
         response_code = test_ans[0].answer.data[0]
         print_debug(f"service: {service}")
         if not check_response_code(service, response_code):

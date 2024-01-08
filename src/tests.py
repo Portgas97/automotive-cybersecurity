@@ -130,7 +130,6 @@ def exec_test_rsdi(can_socket: NativeCANSocket) -> None:
     create_and_send_packet(can_socket, 0x22, 0xFFFF, 3)
     print("TEST_RSDI finished.\n")
 
-
 #################################  TEST_RSDA  #################################
 def exec_test_rsda(can_socket: NativeCANSocket, session: bytes = b'') -> None:
     """
@@ -153,9 +152,38 @@ def exec_test_rsda(can_socket: NativeCANSocket, session: bytes = b'') -> None:
         rsda_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=payload)
         ans_rsda_test = can_socket.sr(rsda_pkt, verbose=0)[0]
         response_code = ans_rsda_test[0].answer.data[0]
-        if not check_response_code(0x11, response_code):
+        if not check_response_code(0x11, response_code): # TO DO why 11??
             print_error("ERROR in packet response")
     else: # fuzzing the session
         create_and_send_packet(can_socket, 0x10, 0xFF, 2)
 
+#################################  TEST_RSSDI  ################################
+def exec_test_rssdi(can_socket: NativeCANSocket) -> None:
+    """
+    It requests an ECU data read, exploiting the 0x24 UDS service.
+
+    This test shall be repeated for each supported diagnostic session.
+    :param can_socket: socket connected to the CAN (or vcan) interface
+    :return: -
+    """
+    print_new_test_banner()
+    print("Starting TEST_RSSDI\n")
+
+    if not send_selected_tester_present(can_socket, passed):
+        print_error("ERROR: tp failed!")
+    print_success("tester present correctly received")
+
+    for session in range(0, 0xFF+1):
+        payload = b'\x10' + session
+        rssdi_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=payload)
+        ans_rssdi_test = can_socket.sr(rssdi_pkt, verbose=0)[0]
+        response_code = ans_rssdi_test[0].answer.data[0]
+        if not check_response_code(0x10, response_code):
+            print_error("ERROR in packet response")
+        else:
+            # TO DO multi-framing must be handled in the callee
+            # TO DO some information should be recorded
+            create_and_send_packet(can_socket, 0x24, 0xFFFF, 3,
+                                   multiframe=True)
+    print("TEST_RSSDI finished.\n")
 
