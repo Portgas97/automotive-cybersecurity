@@ -1,5 +1,4 @@
 # file containing all the testcases for the blackbox testing
-import sys
 
 from utility import *
 
@@ -18,8 +17,8 @@ def exec_test_tp(can_socket: NativeCANSocket) -> None:
           "The following packets are sent (note that probably the underlying\n"
           "implementation adds \\x00 padding):\n")
 
-    ans_list = [[] for i in range(0,7)]
-    unans_list = [[] for i in range(0,7)]
+    ans_list = [[] for _ in range(0, 7)]
+    unans_list = [[] for _ in range(0,7)]
 
     # ID is a value on 29 bits
     # testing for different lengths and data values
@@ -83,8 +82,7 @@ def exec_test_recu(can_socket: NativeCANSocket) -> None:
     print_new_test_banner()
     print("Starting TEST_RECU\n")
 
-    # TO DO questo test non è necessario farlo tanto complicato
-    # è un normalissimo fuzzing
+    # TO DO not necessarily extra-complicated, it's a normal fuzzing
     continue_subtest = True
     payload = b'\x11'
     for i in range(0, 0xFF + 1):
@@ -92,8 +90,7 @@ def exec_test_recu(can_socket: NativeCANSocket) -> None:
         print_debug(f"fuzz value: {fuzz_value}")
         if i < 0x05:
             if not send_selected_tester_present(can_socket, passed):
-                continue # TO DO ho modificato qui per sbaglio così forse va
-                # bene ????
+                continue # TO DO : updated for error, still ok?
             print_success("tester present correctly received")
         recu_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=fuzz_value)
         ans_recu_test = can_socket.sr(recu_pkt, verbose=0)[0]
@@ -174,7 +171,7 @@ def exec_test_rssdi(can_socket: NativeCANSocket) -> None:
     print_success("tester present correctly received")
 
     for session in range(0, 0xFF+1):
-        payload = b'\x10' + session
+        payload = b'\x10' + session.to_bytes(1, 'little')
         rssdi_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=payload)
         ans_rssdi_test = can_socket.sr(rssdi_pkt, verbose=0)[0]
         response_code = ans_rssdi_test[0].answer.data[0]
