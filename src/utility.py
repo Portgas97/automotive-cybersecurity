@@ -3,17 +3,13 @@
 import sys  # accessing cmd line argments
 import atexit
 import signal
-from colorama import Fore, Style  # coloring output
+from colorama import Fore, Style  # coloring output # TO DO better to use loggin library
 
-from scapy.utils import hexdump
-from scapy.packet import ls  # ,explore
-from scapy.sendrecv import sr1, sr
-
-# from scapy.main import load_contrib #, load_layer
+# from scapy.utils import hexdump
+# from scapy.packet import ls, explore
+# from scapy.sendrecv import sr1, sr
 
 from scapy.layers.can import CAN
-from scapy.layers.dns import DNS, DNSQR
-from scapy.layers.inet import IP, UDP, traceroute, TCP
 
 from scapy.contrib.isotp import *
 from scapy.contrib.cansocket_native import NativeCANSocket
@@ -21,35 +17,33 @@ from scapy.contrib.automotive.uds import *
 from scapy.contrib.automotive.uds_scan import UDS_Scanner, \
     UDS_ServiceEnumerator
 
-# from scapy.contrib.cansocket import *
-# load_layer("dns")
-# load_layer("inet")
-# load_layer("can")
-# load_contrib("isotp")
-# load_contrib("automotive.uds")
 
 import scapy101
 import obd_scanning
 import uds_scanning
 import isotp_scanning
 
+import time
+
 conf.contribs['CANSocket'] = {'use-python-can': False} # default
-# load_contrib('cansocket_native') ## ??? needed? already contribs['isotp'] below
-# conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
+# conf.contribs['cansocket_native'] ## ??? needed? already contribs['isotp'] below
+conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
 
 VERBOSE_DEBUG = False
 EXTRA_VERBOSE_DEBUG = False
-CAN_IDENTIFIER = 0x1FFFFFFF # TO DO must be set properly, using scanning modules
+CAN_IDENTIFIER = 0x714 # TO DO must be set properly, using scanning modules
 
-lengths = [2, 2, 1, 2, 2, 2, 1]
-payloads = [b'\x3E\x00\x00\x00\x00\x00\x00',
-            b'\x3E\x80\x00\x00\x00\x00\x00',
-            b'\x3E\x00\x00\x00\x00\x00\x00',
-            b'\x3E\x80\x00\x00\x00\x00\x00',
-            b'\x3E\x00',
-            b'\x3E\x80',
-            b'\x3E']
-passed = [False, False, False, False, False, False, False]
+lengths = [1, 2, 1, 2, 2, 2, 1, 2]
+payloads = [b'\x01\x3E',
+            b'\x02\x3E\x00',
+            b'\x01\x3E\x00\x00\x00\x00\x00\x00',
+            b'\x02\x3E\x00\x00\x00\x00\x00\x00',
+            b'\x02\x3E\x80',
+            b'\x02\x3E\x80\x00\x00\x00\x00\x00', 
+            b'\x01\x3E\x55\x55\x55\x55\x55\x55',
+            b'\x02\x3E\x00\x55\x55\x55\x55\x55',
+            ]
+passed = [False for i in range(0,8)]
 
 def handle_exit():
     """
@@ -84,26 +78,31 @@ def send_selected_tester_present(socket: NativeCANSocket,
                                  passed_tests: list # list[bool] produce error
                                  ) -> bool:
     """
-    Sends several TP packets, based on previously determined conditions.
+    Sends just one TP packet, based on previously determined conditions.
 
     :param socket: the socket connected to the can or vcan interface
     :param passed_tests: array of bools, to retrieve info of passed TP formats
     :return: True at the first positive response, False otherwise.
     """
     global VERBOSE_DEBUG, CAN_IDENTIFIER, lengths, payloads
+
     for i, flag in enumerate(passed_tests):
         if flag is True:
             selected_request = CAN(identifier=CAN_IDENTIFIER,
-                                    length=lengths[i],
+                                    length=8,
                                     data=payloads[i])
-            if VERBOSE_DEBUG:
-                print("Waiting for tester present...")
-            print_debug(i)
-            tp_ans = socket.sr(selected_request, verbose=0)[0]
-            if tp_ans[0] and tp_ans[0].answer.data[0] == 0x7E:
+            # if VERBOSE_DEBUG:
+            #    print("Waiting for tester present...")
+
+            tp_ans, _ = socket.sr(selected_request, inter=0.5, retry=-2, timeout=1)
+            time.sleep(5)
+            print("tester present response: ")
+            print(tp_ans[0].answer.data)
+            if tp_ans[0] and tp_ans[0].answer.data[1] == 0x7E:
                 return True
             else:
                 continue
+
     print_error("Something went wrong in TesterPresent probe\n")
     return False
 
@@ -156,6 +155,18 @@ def print_new_test_banner() -> None:
             "#####################################################################\n"
         )
 
+def print_hex(hex_string):
+    """
+    It prints the hexadecimal value instead of decoding it, e.g. in ASCII. 
+
+    :param hex_string: array of hexadecimal values
+    :return: -
+    """
+    #print(list(a for a in hex_string))
+    value_list = list(''.join('{:02X}'.format(hex_value)) for hex_value in hex_string)
+    print('.'.join(x for x in value_list))
+    
+
 def check_response_code(req_code: int, resp_code: int) -> bool:
     """
     It checks for UDS positive or negative response, displaying relative info.
@@ -167,7 +178,7 @@ def check_response_code(req_code: int, resp_code: int) -> bool:
     if resp_code == req_code + 0x40:
         print_success("Positive response found")
         return True
-
+    
     # common response codes
     elif resp_code == 0x10:
         print_error("error: general reject")
@@ -322,8 +333,11 @@ def byte_length(hex_int: int) -> int:
 
 def create_and_send_packet(can_socket: NativeCANSocket,
                            service: int,
-                           fuzz_range: int,
-                           pkt_length: int,
+                           subservice: int =None,
+                           data: int=None,
+                           data_len: int=0,
+                           fuzz_range: int =0,
+                           inter_tp: bool =False, 
                            multiframe: bool =False,
                            can_id: int =CAN_IDENTIFIER
                            ) -> None:
@@ -332,51 +346,72 @@ def create_and_send_packet(can_socket: NativeCANSocket,
 
     :param can_socket: socket connected to the can interface
     :param service: UDS service to send
+    :param subservice: specifies an exact subservice for the request
+    :param data: information needed for some service
+    :param data_len: on how many byte data parameter is passed
     :param fuzz_range: range for payload value fuzzing
-    :param pkt_length: length of the payload
+    :param inter_tp: wheter to send a tester present before each message
     :param multiframe: if True tells the function to handle the multiframe case
     :param can_id: CAN identifier
     :return: -
     """
-    print_debug(f"passed args: "
-                f"can_socket: {can_socket}, service: {service}, fuzz_range: "
-                f"{fuzz_range}, pkt_length: {pkt_length}, multiframe: "
-                f"{multiframe}, can_id: {can_id}")
 
     for idx in range(0, fuzz_range + 1):
-        print_debug(f"\nidx: {idx}")
+
+        #print_debug(f"\nidx: {idx}")
+
+        if inter_tp:
+            global passed
+            if not send_selected_tester_present(can_socket, passed):
+                print_error("ERROR: tp failed!")
+                return 
+            print_success("tester present correctly received")
+        
         byte_len = byte_length(fuzz_range)
-        print_debug(f"byte_len: {byte_len}")
-        print_debug(f"hex_service: {service.to_bytes(1,'little')}")
-        print_debug(f"idx_hex:{idx.to_bytes(1, 'little')}")
-        fuzz_value = (service.to_bytes(1, 'little') +
-                      idx.to_bytes(byte_len, 'little'))
-        print_debug(f"fuzz_value: {fuzz_value}")
+        if subservice is not None:
+            fuzz_value = (service.to_bytes(1, 'little') + subservice.to_bytes(1, 'little'))
+        elif data is not None: 
+            # non è detto che non si voglia settare sia subservice che data, da verificare???
+            # l'eventuale bruteforcing di data è stato quindi rimandato al chiamante
+            fuzz_value = (service.to_bytes(1, 'little') + data.to_bytes(data_len, 'little'))       
+        else:
+            fuzz_value = (service.to_bytes(1, 'little') + idx.to_bytes(byte_len, 'little'))
+            
+            
+        # concatenate the dlc with fuzz value
+        payload = (1 + byte_len).to_bytes(1, 'little') + fuzz_value
+
+        print_debug(f"test packet payload: ")
+        print_hex(payload)
         test_pkt = CAN(identifier=can_id,
-                       length=pkt_length,
-                       data=fuzz_value)
-        # print_debug(f"test_pkt: {test_pkt.show()}")
-        print_debug("waiting for test packet...")
+                       length=8, 
+                       data=payload)
+
+        # TO DO va aggiunto il padding a fuzz_value??? Dipende da TP, ora come ora no
+
+        # print_debug("waiting for test packet...")
         if not multiframe:
-            test_ans = can_socket.sr(test_pkt, verbose=0)[0]
-            if not test_ans[0]:
+            test_ans, _ = can_socket.sr(test_pkt, timeout=2, verbose=0)
+            try:
+                test_ans[0]
+            except:
+                print("An exception occured.")
                 continue
         else:
-            test_ans = can_socket.sr1(test_pkt, verbose=0)
-            # TO DO check if multiframe, otherwise error
+            test_ans, _ = can_socket.sr(test_pkt, verbose=0, multi=True)
 
-            flow_control_pkt = CAN(identifier=can_id,
-                                   length=30,
-                                   data=b'\x00\x00') # TO DO there is
-            # another format possibility: b'\x30\x00\x00\x00\x00\x00\x00\x00'
-            rf = can_socket.sr(flow_control_pkt, verbose=0)[0]
-
-        # TO DO these code below must be merged with the 'if-else' branch
-        # above someway
-        response_code = test_ans[0].answer.data[0]
-        print_debug(f"service: {service}")
-        if not check_response_code(service, response_code):
-            print_error("ERROR: wrong packet response\n")
+        # print_debug("response: ")
+        # print_hex(test_ans[0].answer.data)
+        response_code = test_ans[0].answer.data[1]
+        
+        check_response_code(service, response_code)
+        
+        # TO DO metterei due liste
+        # una relativa alle positive responses, in cui si restituisce il payload
+        # che ha provocato la risposta e il valore della risposta
+        # una con i NRC, etc. 
 
 
+
+# TO DO reset ecu hard or soft then clear DTC info (service 0x14 --> 04.14.FF.FF.FF.00.00.00)
 
