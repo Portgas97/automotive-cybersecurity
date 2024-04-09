@@ -11,17 +11,17 @@ from colorama import Fore, Style  # coloring output # TO DO better to use loggin
 
 from scapy.layers.can import CAN
 
-from scapy.contrib.isotp import *
+# from scapy.contrib.isotp import *
 from scapy.contrib.cansocket_native import NativeCANSocket
 from scapy.contrib.automotive.uds import *
 from scapy.contrib.automotive.uds_scan import UDS_Scanner, \
     UDS_ServiceEnumerator
 
 
-import scapy101
-import obd_scanning
-import uds_scanning
-import isotp_scanning
+# scapy101
+# import obd_scanning
+# import uds_scanning
+from scapy.contrib.isotp import isotp_scan
 
 import time
 
@@ -31,7 +31,10 @@ conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
 
 VERBOSE_DEBUG = False
 EXTRA_VERBOSE_DEBUG = False
-CAN_IDENTIFIER = 0x714 # TO DO must be set properly, using scanning modules
+CAN_IDENTIFIER = 0x7E5 # 0x714 # TO DO must be set properly, using scanning modules
+SERVER_CAN_ID = 0x7ED
+CAN_INTERFACE = "can0"
+sock_can = None # TO DO change to uppercase
 
 lengths = [1, 2, 1, 2, 2, 2, 1, 2]
 payloads = [b'\x01\x3E',
@@ -94,10 +97,10 @@ def send_selected_tester_present(socket: NativeCANSocket,
             # if VERBOSE_DEBUG:
             #    print("Waiting for tester present...")
 
-            tp_ans, _ = socket.sr(selected_request, inter=0.5, retry=-2, timeout=1)
-            time.sleep(5)
-            print("tester present response: ")
-            print(tp_ans[0].answer.data)
+            tp_ans, _ = socket.sr(selected_request, inter=0.5, retry=-2, timeout=1, verbose=0)
+            # time.sleep(5)
+            # print("tester present response: ")
+            # print(tp_ans[0].answer.data)
             if tp_ans[0] and tp_ans[0].answer.data[1] == 0x7E:
                 return True
             else:
@@ -297,6 +300,15 @@ def print_menu() -> None:
 
             + Fore.LIGHTRED_EX + "\t clear" + Style.RESET_ALL +
               ": clear screen and print command menu\n"
+            
+            + Fore.LIGHTRED_EX + "\t isotp_scan" + Style.RESET_ALL +
+              ": scans for ISO-TP endpoints\n"
+
+            + Fore.LIGHTRED_EX + "\t set_my_ID" + Style.RESET_ALL +
+              ": set the internal state to work with the subsequently passed CAN ID.\n"
+
+            + Fore.LIGHTRED_EX + "\t set_listen_ID" + Style.RESET_ALL +
+              ": set the internal state to listen messages from the subsequently passed CAN ID.\n"
 
             + Fore.LIGHTRED_EX + "\t test_tp" + Style.RESET_ALL +
               ": tester present probe (establish correct packet format)\n"
@@ -381,8 +393,8 @@ def create_and_send_packet(can_socket: NativeCANSocket,
         # concatenate the dlc with fuzz value
         payload = (1 + byte_len).to_bytes(1, 'little') + fuzz_value
 
-        print_debug(f"test packet payload: ")
-        print_hex(payload)
+        # print_debug(f"test packet payload: ")
+        # print_hex(payload)
         test_pkt = CAN(identifier=can_id,
                        length=8, 
                        data=payload)
