@@ -1,13 +1,12 @@
 # from scapy.config import conf
-
-import sys  # accessing cmd line argments
-import atexit
-import signal
-from colorama import Fore, Style  # coloring output # TO DO better to use loggin library
-
 # from scapy.utils import hexdump
 # from scapy.packet import ls, explore
 # from scapy.sendrecv import sr1, sr
+
+import sys  # to access CLI argments
+import atexit
+import signal
+from colorama import Fore, Style  # coloring output # TO DO better to use loggin library
 
 from scapy.layers.can import CAN
 
@@ -17,6 +16,7 @@ from scapy.contrib.automotive.uds import *
 from scapy.contrib.automotive.uds_scan import UDS_Scanner, \
     UDS_ServiceEnumerator
 
+import global_
 
 # scapy101
 # import obd_scanning
@@ -25,28 +25,10 @@ from scapy.contrib.isotp import isotp_scan
 
 import time
 
+# TO DO understand which one to use
 conf.contribs['CANSocket'] = {'use-python-can': False} # default
 # conf.contribs['cansocket_native'] ## ??? needed? already contribs['isotp'] below
 conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
-
-VERBOSE_DEBUG = False
-EXTRA_VERBOSE_DEBUG = False
-CAN_IDENTIFIER = 0x7E5 # 0x714 # TO DO must be set properly, using scanning modules
-SERVER_CAN_ID = 0x7ED
-CAN_INTERFACE = "can0"
-sock_can = None # TO DO change to uppercase
-
-lengths = [1, 2, 1, 2, 2, 2, 1, 2]
-payloads = [b'\x01\x3E',
-            b'\x02\x3E\x00',
-            b'\x01\x3E\x00\x00\x00\x00\x00\x00',
-            b'\x02\x3E\x00\x00\x00\x00\x00\x00',
-            b'\x02\x3E\x80',
-            b'\x02\x3E\x80\x00\x00\x00\x00\x00', 
-            b'\x01\x3E\x55\x55\x55\x55\x55\x55',
-            b'\x02\x3E\x00\x55\x55\x55\x55\x55',
-            ]
-passed = [False for i in range(0,8)]
 
 def handle_exit():
     """
@@ -351,7 +333,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
                            fuzz_range: int =0,
                            inter_tp: bool =False, 
                            multiframe: bool =False,
-                           can_id: int =CAN_IDENTIFIER
+                           can_id: int =global_.CAN_IDENTIFIER
                            ) -> None:
     """
     It builds a CAN packet given the args, sends it and parse the response.

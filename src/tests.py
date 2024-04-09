@@ -1,7 +1,13 @@
 # file containing all the testcases for the blackbox testing
 
-import utility
 from utility import *
+"""
+    NativeCANSocket,CAN, \
+    print_debug, print_error, print_success, print_new_test_banner, print_hex, \
+    create_and_send_packet,send_selected_tester_present, check_response_code,   \
+    isotp_scan
+"""
+import global_
 
 #################################  TEST_TP  #################################
 def exec_test_tp(can_socket: NativeCANSocket) -> None:
@@ -21,28 +27,27 @@ def exec_test_tp(can_socket: NativeCANSocket) -> None:
     # ID is a value on 11 bits
     # testing for different lengths and data values
     for i in range(0,8):
-        tp = CAN(identifier=CAN_IDENTIFIER,
+        tp = CAN(identifier=global_.CAN_IDENTIFIER,
                  length=8,
-                 data=payloads[i])
+                 data=global_.payloads[i])
 
         ans, _ = can_socket.sr(tp, timeout=1, verbose=0)
 
         # ans[0] to read the first answer
         # ans[0].answer to access the CAN object in the query-answer object
-        # note that we may not receive a response, thus the exception handling
-        global passed       
+        # note that we may not receive a response, thus the exception handling      
         try: 
             if ans[0] and ans[0].answer.data[1] == 0x7E: # positive response
-                passed[i] = True
+                global_.passed[i] = True
         except IndexError:
             continue
         
     print("Checking passed tests...\n")
-    for idx, flag in enumerate(passed):
+    for idx, flag in enumerate(global_.passed):
         if flag:
             print_success(f"Positive response from payload: ")
-            print_hex(payloads[idx])
-            print_success(f"with length: {lengths[idx]}")
+            print_hex(global_.payloads[idx])
+            print_success(f"with length: {global_.lengths[idx]}")
 
 
 # TO DO fare un test utility in cui si chiama semplicemente send_selected_tester_present
@@ -177,13 +182,13 @@ def exec_test_rssdi(can_socket: NativeCANSocket) -> None:
     print_new_test_banner()
     print("Starting TEST_RSSDI\n")
 
-    if not send_selected_tester_present(can_socket, passed):
+    if not send_selected_tester_present(can_socket, global_.passed):
         print_error("ERROR: tp failed!")
     print_success("tester present correctly received")
 
     for session in range(0, 0xFF+1):
         payload = b'\x10' + session.to_bytes(1, 'little')
-        rssdi_pkt = CAN(identifier=CAN_IDENTIFIER, length=2, data=payload)
+        rssdi_pkt = CAN(identifier=global_.CAN_IDENTIFIER, length=2, data=payload)
         ans_rssdi_test = can_socket.sr(rssdi_pkt, verbose=0)[0]
         response_code = ans_rssdi_test[0].answer.data[0]
         if not check_response_code(0x10, response_code):
@@ -251,7 +256,7 @@ def set_my_can_id(id_value: int) -> None:
     :param id_value: the value of the ID to set
     :return: -
     """
-    utility.CAN_IDENTIFIER = id_value
+    global_.CAN_IDENTIFIER = id_value
 
 def set_listen_can_id(id_value: int) -> None:
     """
@@ -260,5 +265,5 @@ def set_listen_can_id(id_value: int) -> None:
     :param id_value: the value of the ID to listen to
     :return: -
     """
-    utility.sock_can = NativeCANSocket(channel=CAN_INTERFACE, 
+    global_.CAN_SOCKET = NativeCANSocket(channel=global_.CAN_INTERFACE, 
                                can_filters=[{'can_id': id_value, 'can_mask': 0x7ff}])
