@@ -69,10 +69,12 @@ def exec_test_dds(can_socket: NativeCANSocket) -> None:
     print_new_test_banner()
     print("Starting TEST_DDS\n")
 
-    create_and_send_packet(can_socket=can_socket,
-                           service=0x10,
-                           fuzz_range=0xFF, 
-                           inter_tp=True)
+    list_ans, list_unans = create_and_send_packet(can_socket=can_socket,
+                                                  service=0x10,
+                                                  fuzz_range=0xFF)
+    for list_qa in list_ans:
+        if list_qa[0].answer.data[1] == 0x50:
+            print(f"Session {hex(list_qa[0].query.data[2])}: available")
 
     print("TEST_DSS finished.\n")
 

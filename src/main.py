@@ -38,81 +38,87 @@ def main():
 
     global_.CAN_INTERFACE = args.interface
     print("Socket initialized with can0 and server_id == 0x7ED")
-    global_.CAN_SOCKET = NativeCANSocket(channel=global_.CAN_INTERFACE, 
-                                       can_filters=[{'can_id': global_.SERVER_CAN_ID,
-                                                     'can_mask': 0x7ff}]) 
 
-    print_banner = True
-    while True:
-        command: str = ""
-        if print_banner:
-            print_menu()
-        print_banner = False
+    # TO DO global_.CAN_SOCKET is handled here but also modified in tests.py/set_listen_can_id
+    # is it correct handled?? 
+    # TO DO forse basta mettere nofilter=1 nella chiamata a sr per ricevere un po tutto
+    with NativeCANSocket(channel=global_.CAN_INTERFACE, 
+                         can_filters=[{'can_id': global_.SERVER_CAN_ID,
+                                       'can_mask': 0x7ff}]) as nativecan_socket:
+        global_.CAN_SOCKET = nativecan_socket
+    
 
-        command = input("Enter command: ")
-        command = command.strip()
+        print_banner = True
+        while True:
+            command: str = ""
+            if print_banner:
+                print_menu()
+            print_banner = False
 
-        if command == "":
-            continue
+            command = input("Enter command: ")
+            command = command.strip()
 
-        elif command == "help":
-            print_banner = True
+            if command == "":
+                continue
 
-        elif command == "quit":
-            break
+            elif command == "help":
+                print_banner = True
 
-        elif command == "clear":
-            import os
-            os.system("clear")
-            continue
+            elif command == "quit":
+                break
 
-        # all tests must be set according to this one
-        elif command == "isotp_scan":
-            global_.CAN_SOCKET = None
+            elif command == "clear":
+                import os
+                os.system("clear")
+                continue
 
-            isotp_scanning(global_.CAN_SOCKET)
-            print("Do you want to set the receiver and senders ID now?")
+            # all tests must be set according to this one
+            elif command == "isotp_scan":
+                global_.CAN_SOCKET = None
 
-        elif command == "set_my_ID":
-            can_id = input("Enter the CAN bus ID to test (without 0x but in hex value): maybe 7e5?") # TO DO remove suggestion
-            set_my_can_id(int(can_id, 16))
-        
-        elif command == "set_listen_ID":
-            can_id = input("Enter the CAN ID for sniffing (without 0x but in hex value): maybe 7ed?") # TO DO remove suggestion
-            set_listen_can_id(int(can_id, 16))
+                isotp_scanning(global_.CAN_SOCKET)
+                print("Do you want to set the receiver and senders ID now?")
 
-        elif command == "test_tp":
-            exec_test_tp(global_.CAN_SOCKET)
+            elif command == "set_my_ID":
+                can_id = input("Enter the CAN bus ID to test (without 0x but in hex value): maybe 7e5?") # TO DO remove suggestion
+                set_my_can_id(int(can_id, 16))
+            
+            elif command == "set_listen_ID":
+                can_id = input("Enter the CAN ID for sniffing (without 0x but in hex value): maybe 7ed?") # TO DO remove suggestion
+                set_listen_can_id(int(can_id, 16))
 
-        elif command == "test_dds":
-            exec_test_dds(global_.CAN_SOCKET)
+            elif command == "test_tp":
+                exec_test_tp(global_.CAN_SOCKET)
 
-        elif command == "test_recu":
-            exec_test_recu(global_.CAN_SOCKET)
+            elif command == "test_dds":
+                exec_test_dds(global_.CAN_SOCKET)
 
-        elif command == "test_rsdi":
-            exec_test_rdbi(global_.CAN_SOCKET)
+            elif command == "test_recu":
+                exec_test_recu(global_.CAN_SOCKET)
 
-        elif command == "test_rsda":
-            session = input("Enter diagnostic session for the test (hex "
-                            "format, null for fuzzing): ").strip()
-            if session == "":
-                exec_test_rsda(global_.CAN_SOCKET)
-            elif 0x00 < int(session) < 0xFF:
-                exec_test_rsda(global_.CAN_SOCKET, int(session).to_bytes())
+            elif command == "test_rsdi":
+                exec_test_rdbi(global_.CAN_SOCKET)
+
+            elif command == "test_rsda":
+                session = input("Enter diagnostic session for the test (hex "
+                                "format, null for fuzzing): ").strip()
+                if session == "":
+                    exec_test_rsda(global_.CAN_SOCKET)
+                elif 0x00 < int(session) < 0xFF:
+                    exec_test_rsda(global_.CAN_SOCKET, int(session).to_bytes())
+                else:
+                    print("wrong session inserted, try again")
+                    skip_input = True
+            elif command == "":
+                pass
+            elif command == "":
+                pass
+
             else:
-                print("wrong session inserted, try again")
-                skip_input = True
-        elif command == "":
-            pass
-        elif command == "":
-            pass
+                print_error("error: the inserted command does not exist")
+                print("ERROR in command parsing")
 
-        else:
-            print_error("error: the inserted command does not exist")
-            print("ERROR in command parsing")
-
-    print_success("PROGRAM CLOSED.")
+        print_success("PROGRAM CLOSED.")
 
 
 if __name__ == "__main__":

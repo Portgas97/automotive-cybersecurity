@@ -13,16 +13,16 @@ from scapy.layers.can import CAN
 # from scapy.contrib.isotp import *
 from scapy.contrib.cansocket_native import NativeCANSocket
 from scapy.contrib.automotive.uds import *
-from scapy.contrib.automotive.uds_scan import UDS_Scanner, \
-    UDS_ServiceEnumerator
 
-import global_
-
-# scapy101
-# import obd_scanning
-import uds_scanning
 from scapy.contrib.isotp import isotp_scan
 
+from scapy.plist import (
+    PacketList,
+    QueryAnswer,
+    SndRcvList,
+)
+
+import global_
 import time
 
 # TO DO understand which one to use
@@ -48,6 +48,9 @@ def handle_sigterm():
     """
     print("handle_sigterm() invoked")
 
+# signal.signal(signal.SIGTERM, handle_sigterm())
+
+
 def handle_sigint():
     """
     TO DO Operations to be performed at sigint.
@@ -56,8 +59,8 @@ def handle_sigint():
     """
     print("handle_sigint() invoked")
 
-# signal.signal(signal.SIGTERM, handle_sigterm())
 # signal.signal(signal.SIGINT, handle_sigint())
+
 
 def send_selected_tester_present(socket: NativeCANSocket,
                                  passed_tests: list # list[bool] produce error
@@ -69,13 +72,12 @@ def send_selected_tester_present(socket: NativeCANSocket,
     :param passed_tests: array of bools, to retrieve info of passed TP formats
     :return: True at the first positive response, False otherwise.
     """
-    global VERBOSE_DEBUG, CAN_IDENTIFIER, lengths, payloads
 
     for i, flag in enumerate(passed_tests):
         if flag is True:
-            selected_request = CAN(identifier=CAN_IDENTIFIER,
+            selected_request = CAN(identifier=global_.CAN_IDENTIFIER,
                                     length=8,
-                                    data=payloads[i])
+                                    data=global_.payloads[i])
             # if VERBOSE_DEBUG:
             #    print("Waiting for tester present...")
 
@@ -98,8 +100,7 @@ def print_error(error_message: str) -> None:
     :param error_message: string to print to the console, error information
     :return: -
     """
-    global VERBOSE_DEBUG
-    if VERBOSE_DEBUG is True:
+    if global_.VERBOSE_DEBUG is True:
         print(Fore.RED + error_message + Style.RESET_ALL)
 
 def print_success(message: str) -> None:
@@ -109,8 +110,7 @@ def print_success(message: str) -> None:
     :param message: information to print to the console
     :return: -
     """
-    global VERBOSE_DEBUG
-    if VERBOSE_DEBUG is True:
+    if global_.VERBOSE_DEBUG is True:
         print(Fore.GREEN + message + Style.RESET_ALL)
 
 def print_debug(message: str) -> None:
@@ -120,8 +120,7 @@ def print_debug(message: str) -> None:
     :param message: information to print to the console
     :return: -
     """
-    global EXTRA_VERBOSE_DEBUG
-    if EXTRA_VERBOSE_DEBUG is True:
+    if global_.EXTRA_VERBOSE_DEBUG is True:
         print(message)
 
 def print_new_test_banner() -> None:
@@ -130,8 +129,7 @@ def print_new_test_banner() -> None:
 
     :return: -
     """
-    global VERBOSE_DEBUG
-    if VERBOSE_DEBUG is True:
+    if global_.VERBOSE_DEBUG is True:
         print(
             "#####################################################################\n"
             "#####################################################################\n"
@@ -140,7 +138,9 @@ def print_new_test_banner() -> None:
             "#####################################################################\n"
         )
 
-def print_hex(hex_string):
+# TO DO decorate this function
+# TO DO test delim function, not done
+def print_hex(hex_string, delim=""):
     """
     It prints the hexadecimal value instead of decoding it, e.g. in ASCII. 
 
@@ -149,8 +149,11 @@ def print_hex(hex_string):
     """
     #print(list(a for a in hex_string))
     value_list = list(''.join('{:02X}'.format(hex_value)) for hex_value in hex_string)
-    print('.'.join(x for x in value_list))
-    
+    if delim is not "":
+        print('.'.join(x for x in value_list), delim)
+    else:
+        print('.'.join(x for x in value_list))
+
 
 def check_response_code(req_code: int, resp_code: int) -> bool:
     """
@@ -334,7 +337,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
                            inter_tp: bool =False, 
                            multiframe: bool =False,
                            can_id: int =global_.CAN_IDENTIFIER
-                           ) -> None:
+                           ) -> tuple[SndRcvList, PacketList]:
     """
     It builds a CAN packet given the args, sends it and parse the response.
 
@@ -347,16 +350,16 @@ def create_and_send_packet(can_socket: NativeCANSocket,
     :param inter_tp: wheter to send a tester present before each message
     :param multiframe: if True tells the function to handle the multiframe case
     :param can_id: CAN identifier
-    :return: -
+    :return: two list composed of answered and unanswered messages
     """
 
+    ans_list = []
     for idx in range(0, fuzz_range + 1):
 
         #print_debug(f"\nidx: {idx}")
 
         if inter_tp:
-            global passed
-            if not send_selected_tester_present(can_socket, passed):
+            if not send_selected_tester_present(can_socket, global_.passed):
                 print_error("ERROR: tp failed!")
                 return 
             print_success("tester present correctly received")
@@ -375,6 +378,8 @@ def create_and_send_packet(can_socket: NativeCANSocket,
         # concatenate the dlc with fuzz value
         payload = (1 + byte_len).to_bytes(1, 'little') + fuzz_value
 
+        # TO DO length, payload, and padding must be set properly based on test_tp test 
+
         # print_debug(f"test packet payload: ")
         # print_hex(payload)
         test_pkt = CAN(identifier=can_id,
@@ -384,26 +389,35 @@ def create_and_send_packet(can_socket: NativeCANSocket,
         # TO DO va aggiunto il padding a fuzz_value??? Dipende da TP, ora come ora no
 
         # print_debug("waiting for test packet...")
+
         if not multiframe:
-            test_ans, _ = can_socket.sr(test_pkt, timeout=2, verbose=0)
-            try:
-                test_ans[0]
-            except:
-                print("An exception occured.")
-                continue
+            results, unanswered = can_socket.sr(test_pkt, retry=2, timeout=2, verbose=0)
+            
         else:
-            test_ans, _ = can_socket.sr(test_pkt, verbose=0, multi=True)
+            results, unanswered = can_socket.sr(test_pkt, retry=2, verbose=0, multi=True)
+        try:
+            results[0]
+        except Exception as e:
+            print_debug(f"Exception: {e}, probably no response from ECU")
+            continue
+
+        ans_list.append(results)
 
         # print_debug("response: ")
         # print_hex(test_ans[0].answer.data)
-        response_code = test_ans[0].answer.data[1]
-        
+        # QueryAnswer(
+        #   query=<CAN  identifier=XXX length=XXX data=XXX |>,
+        #   answer=<CAN  flags=XXX identifier=XXX length=XXX reserved=XXX data=XXX |>
+        # )
+        response_code = results[0].answer.data[1]
         check_response_code(service, response_code)
         
         # TO DO metterei due liste
         # una relativa alle positive responses, in cui si restituisce il payload
         # che ha provocato la risposta e il valore della risposta
         # una con i NRC, etc. 
+
+    return ans_list, None
 
 
 
