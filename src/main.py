@@ -8,8 +8,10 @@
 # https://github.com/hartkopp/can-isotp
 
 import utility
-from tests import *
+import global_
 import argparse
+from tests import *
+
 
 # # # # # # # # # # # # # # # # #  STEP 4  # # # # # # # # # # # # # # # # #
 # black-box testing of UDS services
@@ -24,20 +26,20 @@ def main():
     if args.verbose:
         # TO DO correctly set these values
         print("verbosity turned on")
-        utility.VERBOSE_DEBUG = True
-        utility.EXTRA_VERBOSE_DEBUG = True
+        global_.VERBOSE_DEBUG = True
+        global_.EXTRA_VERBOSE_DEBUG = True
 
 
 #    if len(sys.argv) > 1:
 #        if sys.argv[1] == "-v":
-#            utility.VERBOSE_DEBUG = True
+#            global_.VERBOSE_DEBUG = True
 #        elif sys.argv[1] == "-vv":
-#            utility.EXTRA_VERBOSE_DEBUG = True
+#            global_.EXTRA_VERBOSE_DEBUG = True
 
-    utility.CAN_INTERFACE = args.interface
+    global_.CAN_INTERFACE = args.interface
     print("Socket initialized with can0 and server_id == 0x7ED")
-    utility.sock_can = NativeCANSocket(channel=CAN_INTERFACE, 
-                                       can_filters=[{'can_id': utility.SERVER_CAN_ID,
+    global_.CAN_SOCKET = NativeCANSocket(channel=global_.CAN_INTERFACE, 
+                                       can_filters=[{'can_id': global_.SERVER_CAN_ID,
                                                      'can_mask': 0x7ff}]) 
 
     print_banner = True
@@ -66,9 +68,9 @@ def main():
 
         # all tests must be set according to this one
         elif command == "isotp_scan":
-            utility.sock_can = None
+            global_.CAN_SOCKET = None
 
-            isotp_scanning(utility.sock_can)
+            isotp_scanning(global_.CAN_SOCKET)
             print("Do you want to set the receiver and senders ID now?")
 
         elif command == "set_my_ID":
@@ -80,24 +82,24 @@ def main():
             set_listen_can_id(int(can_id, 16))
 
         elif command == "test_tp":
-            exec_test_tp(utility.sock_can)
+            exec_test_tp(global_.CAN_SOCKET)
 
         elif command == "test_dds":
-            exec_test_dds(utility.sock_can)
+            exec_test_dds(global_.CAN_SOCKET)
 
         elif command == "test_recu":
-            exec_test_recu(utility.sock_can)
+            exec_test_recu(global_.CAN_SOCKET)
 
         elif command == "test_rsdi":
-            exec_test_rdbi(utility.sock_can)
+            exec_test_rdbi(global_.CAN_SOCKET)
 
         elif command == "test_rsda":
             session = input("Enter diagnostic session for the test (hex "
                             "format, null for fuzzing): ").strip()
             if session == "":
-                exec_test_rsda(utility.sock_can)
+                exec_test_rsda(global_.CAN_SOCKET)
             elif 0x00 < int(session) < 0xFF:
-                exec_test_rsda(utility.sock_can, int(session).to_bytes())
+                exec_test_rsda(global_.CAN_SOCKET, int(session).to_bytes())
             else:
                 print("wrong session inserted, try again")
                 skip_input = True

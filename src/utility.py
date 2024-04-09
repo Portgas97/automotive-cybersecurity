@@ -20,7 +20,7 @@ import global_
 
 # scapy101
 # import obd_scanning
-# import uds_scanning
+import uds_scanning
 from scapy.contrib.isotp import isotp_scan
 
 import time
