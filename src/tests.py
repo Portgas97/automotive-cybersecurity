@@ -3,8 +3,7 @@
 from utility import *
 """
     NativeCANSocket,CAN, \
-    print_debug, print_error, print_success, print_new_test_banner, print_hex, \
-    create_and_send_packet,send_selected_tester_present, check_response_code,   \
+    print_debug, print_error, print_success, print_new_test_banner, print_hex, send_selected_tester_present, check_response_code,   \
     isotp_scan
 """
 import global_
@@ -59,7 +58,7 @@ def exec_test_tp(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
 
 #################################  TEST_DDS  #################################
 # Test for discovering supported diagnostic sessions (TEST_DDS)
-def exec_test_dds(can_socket: NativeCANSocket =global_.CAN_SOCKET, session_explored: list[int] =0x01) -> None:
+def exec_test_dds(can_socket: NativeCANSocket =global_.CAN_SOCKET, session_explored: list[int] =[0x01]) -> None:
     """
     It explore the session space recursively and builds a graph of available sessions. 
 
@@ -115,12 +114,13 @@ def exec_test_recu(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
 
     # TODO: apply in available sessions
 
-    create_and_send_packet(can_socket=can_socket, 
-                           service=0x11, 
-                           subservice=None, 
-                           data=None, 
-                           data_len=0, 
-                           fuzz_range=0xFF)
+    # TODO change with new functions
+    # create_and_send_packet(can_socket=can_socket, 
+    #                        service=0x11, 
+    #                        subservice=None, 
+    #                        data=None, 
+    #                        data_len=0, 
+    #                        fuzz_range=0xFF)
 
     print("TEST_RECU finished.\n")
 
@@ -146,7 +146,8 @@ def exec_test_rdbi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     print("Starting TEST_RDBI\n")
 
     print_error("trying rdbi using fuzz range as DIDs....")
-    create_and_send_packet(can_socket, 0x22, None, None, 0, 0xFFFF, False, True)
+    # TODO change with new functions
+    # create_and_send_packet(can_socket, 0x22, None, None, 0, 0xFFFF, False, True)
 
     print("TEST_RDBI finished.\n")
 
@@ -165,31 +166,34 @@ def exec_test_rsda(can_socket: NativeCANSocket =global_.CAN_SOCKET, session: byt
 
     if session != b'':
         for address in range(0x0000, 0xFFFF):
-            create_and_send_packet(can_socket=can_socket, 
-                                   service=0x10,
-                                   subservice=session,
-                                   fuzz_range=1, 
-                                   inter_tp=True,
-                                   multiframe=True)
+            # TODO change with new functions
+            # create_and_send_packet(can_socket=can_socket, 
+            #                        service=0x10,
+            #                        subservice=session,
+            #                        fuzz_range=1, 
+            #                        inter_tp=True,
+            #                        multiframe=True)
             
             # |  addressAndLengthFormatIdentifier  |  memoryAddress  |  memorySize  |
             data_payload =    0x12.to_bytes(1, 'little')     \
                             + address.to_bytes(2, 'little')  \
                             + 0x01.to_bytes(1, 'little')
-            
-            create_and_send_packet(can_socket=can_socket,
-                                   service= 0x23, 
-                                   subservice=None,
-                                   data=data_payload,
-                                   data_len= 4,
-                                   fuzz_range=0)
+            # TODO change with new functions
+            # create_and_send_packet(can_socket=can_socket,
+            #                        service= 0x23, 
+            #                        subservice=None,
+            #                        data=data_payload,
+            #                        data_len= 4,
+            #                        fuzz_range=0)
     else: 
-        create_and_send_packet(can_socket=can_socket,
-                               service=0x10,
-                               subservice=None, 
-                               fuzz_range=0xFF,
-                               inter_tp=True,
-                               multiframe=True)
+        # TODO change with new functions
+        # create_and_send_packet(can_socket=can_socket,
+        #                        service=0x10,
+        #                        subservice=None, 
+        #                        fuzz_range=0xFF,
+        #                        inter_tp=True,
+        #                        multiframe=True)
+        pass
 
 
     
@@ -221,7 +225,9 @@ def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
         else:
             # TODO: multi-framing must be handled in the callee
             # TODO: some information should be recorded
-            create_and_send_packet(can_socket, 0x24, 0xFFFF, multiframe=True)
+            # TODO change with new functions
+            # create_and_send_packet(can_socket, 0x24, 0xFFFF, multiframe=True)
+            pass
     print("TEST_RSSDI finished.\n")
 
 # TODO: seed randomness

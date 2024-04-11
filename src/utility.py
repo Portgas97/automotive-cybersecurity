@@ -335,14 +335,12 @@ def create_packet(service: int =0,
                   can_id: int =global_.CAN_IDENTIFIER) -> Packet:
     
     if service:
-        pld = service.to_bytes(1, 'little') 
+        pld = service.to_bytes(1, 'little')
     if subservice:
-        pld += subservice.to_bytes(1, 'little')
+        pld += subservice.to_bytes(1, 'little') # type: ignore
     if data != b'': 
-        if data_len != 0:
-            pld += data.to_bytes(data_len, 'little')   
+        pld += data    # type: ignore
     
-        
         
     # concatenate the dlc with fuzz value
     payload = (len(pld)).to_bytes(1, 'little') + pld
@@ -427,6 +425,9 @@ def fuzz(service: int =0,
     return packets_list
 
 
+# TODO delete when confident
+
+"""
 def create_and_send_packet(can_socket: NativeCANSocket,
                            service: int,
                            subservice: int =None,
@@ -437,7 +438,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
                            multiframe: bool =False,
                            can_id: int =global_.CAN_IDENTIFIER
                            ) -> tuple[SndRcvList, PacketList]:
-    """
+    
     It builds a CAN packet given the args, sends it and parse the response.
 
     :param can_socket: socket connected to the can interface
@@ -450,7 +451,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
     :param multiframe: if True tells the function to handle the multiframe case
     :param can_id: client CAN identifier
     :return: two list composed of answered and unanswered messages
-    """
+    
 
     ans_list = []
     for idx in range(0, fuzz_range + 1):
@@ -517,6 +518,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
         # una con i NRC, etc. 
 
     return ans_list, None
+"""
 
 
 
