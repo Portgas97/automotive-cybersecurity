@@ -7,8 +7,10 @@ import global_
 # TODO: fare un test utility per leggere la sessione di diagnostica corrente 
 # (usa RDBI a forse anche un UDS service)
 # TODO: bruteforce test passed 
-# TODO: seed randomness
+# TODO: seed randomness / test for measuring RNBG entropy 
 # TODO: given a packet, reply it
+# TODO test for control ECU communication 
+# TODO test for control link baud rate 
 
 
 
@@ -126,18 +128,6 @@ def exec_test_recu(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     print("TEST_RECU finished.\n")
 
 
-#################################  TEST_  #################################
-# TODO test for measuring RNBG entropy 
-
-
-#################################  TEST_  #################################
-# TODO test for control ECU communication 
-
-
-#################################  TEST_  #################################
-# TODO test for control link baud rate 
-
-
 #################################  TEST_RSDI  #################################
 def exec_test_rdbi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     """
@@ -202,8 +192,6 @@ def exec_test_rsda(can_socket: NativeCANSocket =global_.CAN_SOCKET,
         pass
 
 
-    
-
 #################################  TEST_RSSDI  ################################
 # TODO: rebuild this function
 def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
@@ -241,8 +229,7 @@ def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
 
 
 #############################  TEST_ISOTPSCANNING  #############################
-
-def isotp_scanning(can_socket: NativeCANSocket =global_.CAN_SOCKET):
+def isotp_scanning(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     """
     To identify all possible communication endpoints and their supported
     application layer protocols, a transport layer scan has to be performed

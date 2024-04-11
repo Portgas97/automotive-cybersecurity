@@ -1,8 +1,3 @@
-# from scapy.config import conf
-# from scapy.utils import hexdump
-# from scapy.packet import ls, explore
-# from scapy.sendrecv import sr1, sr
-
 import sys  # to access CLI argments
 import atexit # TODO maybe later
 import signal # TODO maybe later
@@ -14,7 +9,6 @@ from scapy.layers.can import CAN
 from scapy.contrib.cansocket_native import NativeCANSocket
 from scapy.contrib.automotive.uds import conf, Packet
 
-
 from scapy.plist import (
     PacketList,
     QueryAnswer,
@@ -24,11 +18,20 @@ from scapy.plist import (
 import global_
 import time # TODO sometime used for debugging
 
-
 # conf.contribs['CANSocket'] = {'use-python-can': False} 
 conf.contribs['CAN']['remove-padding'] = True
 conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
 from scapy.contrib.isotp import isotp_scan # must be after import above
+
+
+
+# TODO: reset ecu hard or soft then clear DTC info (service 0x14 --> 04.14.FF.FF.FF.00.00.00)
+# TODO si possono fare funzioni di utilità basandosi su
+ # QueryAnswer(
+#   query=<CAN  identifier=XXX length=XXX data=XXX |>,
+#   answer=<CAN  flags=XXX identifier=XXX length=XXX reserved=XXX data=XXX |>
+# )
+
 
 
 def handle_exit():
@@ -94,6 +97,7 @@ def send_selected_tester_present(socket: NativeCANSocket,
     print_error("Something went wrong in TesterPresent probe\n")
     return False
 
+
 def print_error(error_message: str) -> None:
     """
     Prints a red error message, only if verbose output is set.
@@ -103,6 +107,7 @@ def print_error(error_message: str) -> None:
     """
     if global_.VERBOSE_DEBUG is True:
         print(Fore.RED + error_message + Style.RESET_ALL)
+
 
 def print_success(message: str) -> None:
     """
@@ -114,6 +119,7 @@ def print_success(message: str) -> None:
     if global_.VERBOSE_DEBUG is True:
         print(Fore.GREEN + message + Style.RESET_ALL)
 
+
 def print_debug(message: str) -> None:
     """
     Prints general information to the console, only if strong verbosity is set.
@@ -123,6 +129,7 @@ def print_debug(message: str) -> None:
     """
     if global_.VERBOSE_DEBUG is True:
         print(Fore.YELLOW + message + Style.RESET_ALL)
+
 
 def print_new_test_banner() -> None:
     """
@@ -139,9 +146,9 @@ def print_new_test_banner() -> None:
             "#####################################################################\n"
         )
 
-# TODO: decorate this function
+
 # TODO: test delim function, not done
-def print_hex(hex_string, delim=""):
+def print_hex(hex_string, delim="") -> None:
     """
     It prints the hexadecimal value instead of decoding it, e.g. in ASCII. 
 
@@ -259,6 +266,7 @@ def check_response_code(req_code: int, resp_code: int) -> bool:
         print_error("error: unexpected response")
     return False
 
+
 def print_menu() -> None:
     """
     Prints banner and menu options.
@@ -311,6 +319,7 @@ def print_menu() -> None:
               ": ... TODO:\n"
             )
 
+
 def byte_length(hex_int: int) -> int:
     """
     It computes how many bytes are necessary for a given hex integer value.
@@ -321,20 +330,21 @@ def byte_length(hex_int: int) -> int:
     return (hex_int.bit_length() + 7) // 8
 
 
-# TODO: creare una create_packet separata
-# TODO: creare una send_and_receive
-# TODO: il fuzzing si farà fuori, tipo burst_packets nel caso si possano
-# mandare tutti di fila, nel caso di test come rsda dopo ogni pacchetto
-# bisognare chiamare un'altra funzione, quindi questa funzione qui sotto va
-# scomposta.
-
-# TODO: description
 def create_packet(service: int =0, 
                   subservice: int =0,
                   data: bytes =b'',
                   data_len: int =0, 
                   can_id: int =global_.CAN_IDENTIFIER) -> Packet:
-    
+    """
+    Builds a CAN packet depending on the parameter passed. 
+
+    :param service: UDS service to set
+    :param subservice: UDS subservice
+    :param data: optional data used in some UDS services
+    :param data_len: length of the data above
+    :param can_id: CAN identifier
+    :return: the built CAN packet
+    """
     if service:
         pld = service.to_bytes(1, 'little')
     if subservice:
@@ -352,12 +362,21 @@ def create_packet(service: int =0,
     # print_hex(payload)
     return CAN(identifier=can_id, length=8, data=payload)
 
-# TODO: description
-def send_receive(can_socket: NativeCANSocket, 
-                 packet: Packet,
+
+def send_receive(packet: Packet, 
+                 can_socket: NativeCANSocket =global_.CAN_SOCKET, 
                  client_can_id: int =global_.CAN_IDENTIFIER,
                  multiframe: bool =False) -> tuple[SndRcvList, PacketList]:
+    """
+    Calls the sr() scapy function, it distinguish between single and multiframe
+    cases. 
 
+    :param can_socket: socket to work with
+    :param packet: CAN packet to send
+    :param client_can_id: client CAN ID to use in the communication
+    :param multiframe: flag to enable multiframe handling
+    :return: a tuple of answered query-answer and unanswered packets
+    """
     if not multiframe:
             results, unanswered = can_socket.sr(packet, retry=2, timeout=2, verbose=0)
     else:
@@ -370,13 +389,6 @@ def send_receive(can_socket: NativeCANSocket,
     return results, unanswered
 
 
-    # print_debug("response: ")
-    # print_hex(test_ans[0].answer.data)
-    
-    ### response_code = results[0].answer.data[1]
-    ### check_response_code(service, response_code)
-
-# TODO: description
 def fuzz(service: int =0,
          subservice: int =0,
          fuzz_service: bool =False, 
@@ -388,6 +400,19 @@ def fuzz(service: int =0,
          fuzz_data_range: int =0, 
          # fuzz_data_len_range: int =0
          ) -> list[Packet]:
+    """
+    Creates a list of packets based on fuzzing conditions. 
+
+    :param service: service to use in all the packets
+    :param subservice: subservice to use in all the packets
+    :param fuzz_service: flag to enable service fuzzing
+    :param fuzz_subservice: flag to enable subservice fuzzing
+    :param fuzz_data: flag to enable data fuzzing
+    :param fuzz_service_range: range of fuzzing in case of service fuzzing
+    :param fuzz_subservice_range: range of fuzzing in case of subservice fuzzing
+    :param fuzz_data_range: range of fuzzing in case of data fuzzing
+    :return: a list of packets
+    """
     
     packets_list = []
     if fuzz_service and not fuzz_subservice and not fuzz_data:
@@ -399,7 +424,6 @@ def fuzz(service: int =0,
         for fuzzval in range(fuzz_subservice_range + 1):
             packets_list.append(create_packet(service, fuzzval))
 
-    
     elif not fuzz_service_range and not fuzz_subservice and fuzz_data:
         # fuzz solo data
         pass
@@ -427,7 +451,6 @@ def fuzz(service: int =0,
 
 
 # TODO delete when confident
-
 """
 def create_and_send_packet(can_socket: NativeCANSocket,
                            service: int,
@@ -520,14 +543,3 @@ def create_and_send_packet(can_socket: NativeCANSocket,
 
     return ans_list, None
 """
-
-
-
-# TODO: reset ecu hard or soft then clear DTC info (service 0x14 --> 04.14.FF.FF.FF.00.00.00)
-
-
-# TODO si possono fare funzioni di utilità basandosi su
- # QueryAnswer(
-#   query=<CAN  identifier=XXX length=XXX data=XXX |>,
-#   answer=<CAN  flags=XXX identifier=XXX length=XXX reserved=XXX data=XXX |>
-# )
