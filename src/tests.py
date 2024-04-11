@@ -84,12 +84,12 @@ def exec_test_dds(can_socket: NativeCANSocket =global_.CAN_SOCKET,
     for new_session in range(1, 256): # scan the session space
         active_session = session_explored[-1] 
         dsc = create_packet(0x10, active_session)
-        res, _ = send_receive(can_socket, dsc) # maintain the current session
+        res, _ = send_receive(dsc) # maintain the current session
         #check_response_code(0x10, res[0].answer.data[1]) # TODO troppe stampe
 
         if new_session not in session_explored: # if not already found
             session_probe = create_packet(0x10, new_session)
-            res, _ = send_receive(can_socket, session_probe)
+            res, _ = send_receive(session_probe)
 
             if res[0].answer.data[1] == 0x50: # session is reachable
                 session_explored.append(new_session)
