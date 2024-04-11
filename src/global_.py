@@ -24,4 +24,4 @@ payloads =  [  # TODO: in the future, this variable now is used in a print and i
             ]
 passed = [False for i in range(0,8)]
 
-SessionsGraph = graph({"0x10" : []}) # Default diagnostic session is always available 
+SessionsGraph = graph({"0x10" : []}) # Default diagnostic always available 

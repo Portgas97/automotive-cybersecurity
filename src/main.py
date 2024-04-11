@@ -17,27 +17,33 @@ from tests import *
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
-    parser.add_argument("interface", help="CAN bus interface")
+
+    parser.add_argument("-v", "--verbose", 
+                        help="increase output verbosity", 
+                        action="store_true")
+    
+    parser.add_argument("interface", 
+                        help="CAN bus interface")
+    
     args = parser.parse_args()
 
     if args.verbose:
         print_debug("verbosity turned on")
         global_.VERBOSE_DEBUG = True
 
-
     global_.CAN_INTERFACE = args.interface
     print_debug("Socket initialized with can0 and server_id == 0x7ED")
 
-    # TODO: global_.CAN_SOCKET is handled here but also modified in tests.py/set_listen_can_id
-    # is it correct handled?? 
-    # TODO: forse basta mettere nofilter=1 nella chiamata a sr per ricevere un po tutto
+    # ! global_.CAN_SOCKET is handled here but also modified in 
+    # ! tests.py/set_listen_can_id is it correct handled?? 
+    # ? forse basta mettere nofilter=1 nella chiamata a sr per ricevere un po tutto
     with NativeCANSocket(channel=global_.CAN_INTERFACE,  
                          can_filters=[{'can_id': global_.SERVER_CAN_ID,
-                                       'can_mask': 0x7ff}]) as nativecan_socket:
+                                       'can_mask': 0x7ff}]
+                        ) as nativecan_socket:
+        
         global_.CAN_SOCKET = nativecan_socket
     
-
         print_banner = True
         while True:
             command: str = ""
@@ -65,7 +71,7 @@ def main():
             # all tests must be set according to this one
             elif command == "isotp_scan":
                 isotp_scanning()
-                print_debug("Do you want to set the receiver and sender IDs now?")
+                print_debug("You can now set the receiver and sender IDs now!")
 
             elif command == "set_my_ID":
                 can_id = input("Enter the CAN bus ID to test (hex w/o 0x): ")

@@ -1,12 +1,16 @@
-# file containing all the testcases for the blackbox testing
+# file containing the testcases for ECU blackbox testing
 
 from utility import *
-"""
-    NativeCANSocket,CAN, \
-    print_debug, print_error, print_success, print_new_test_banner, print_hex, send_selected_tester_present, check_response_code,   \
-    isotp_scan
-"""
 import global_
+
+            
+# TODO: fare un test utility per leggere la sessione di diagnostica corrente 
+# (usa RDBI a forse anche un UDS service)
+# TODO: bruteforce test passed 
+# TODO: seed randomness
+# TODO: given a packet, reply it
+
+
 
 #################################  TEST_TP  #################################
 # TODO: this test is shit because padding is applied underneath
@@ -50,20 +54,16 @@ def exec_test_tp(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
             print_success(f"with length: {global_.lengths[idx]}")
 
 
-            
-# TODO: fare un test utility per leggere la sessione di diagnostica corrente (usa RDBI a forse anche un UDS service)
-
-# TODO: bruteforce test passed 
-
-
 #################################  TEST_DDS  #################################
 # Test for discovering supported diagnostic sessions (TEST_DDS)
-def exec_test_dds(can_socket: NativeCANSocket =global_.CAN_SOCKET, session_explored: list[int] =[0x01]) -> None:
+def exec_test_dds(can_socket: NativeCANSocket =global_.CAN_SOCKET, 
+                  session_explored: list[int] =[0x01]) -> None:
     """
-    It explore the session space recursively and builds a graph of available sessions. 
+    It explore the session space recursively and builds a graph of available 
+    sessions. 
 
     :param can_socket: socket connected to the CAN (or vcan) interface
-    :param session_explored: maintains the already passed sessions in the recursion
+    :param session_explored: maintains already seen sessions in the recursion
     :return: -
     """
 
@@ -95,7 +95,8 @@ def exec_test_dds(can_socket: NativeCANSocket =global_.CAN_SOCKET, session_explo
                 global_.SessionsGraph.addVertex(new_session)
                 global_.SessionsGraph.AddEdge({active_session, new_session})
 
-                exec_test_dds(can_socket, session_explored) # recursive exploration from new session
+                # recursive exploration from new session
+                exec_test_dds(can_socket, session_explored) 
 
     session_explored.pop(-1)
 
@@ -124,14 +125,18 @@ def exec_test_recu(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
 
     print("TEST_RECU finished.\n")
 
-#################################  TEST_  #################################
-# test for measuring RNBG entropy TODO:
 
 #################################  TEST_  #################################
-# test for control ECU communication TODO:
+# TODO test for measuring RNBG entropy 
+
 
 #################################  TEST_  #################################
-# test for control link baud rate TODO:
+# TODO test for control ECU communication 
+
+
+#################################  TEST_  #################################
+# TODO test for control link baud rate 
+
 
 #################################  TEST_RSDI  #################################
 def exec_test_rdbi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
@@ -152,7 +157,8 @@ def exec_test_rdbi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     print("TEST_RDBI finished.\n")
 
 #################################  TEST_RSDA  #################################
-def exec_test_rsda(can_socket: NativeCANSocket =global_.CAN_SOCKET, session: bytes = b'') -> None:
+def exec_test_rsda(can_socket: NativeCANSocket =global_.CAN_SOCKET, 
+                   session: bytes = b'') -> None:
     """
     It requests an ECU data read by memory address, service 0x23.
 
@@ -174,7 +180,7 @@ def exec_test_rsda(can_socket: NativeCANSocket =global_.CAN_SOCKET, session: byt
             #                        inter_tp=True,
             #                        multiframe=True)
             
-            # |  addressAndLengthFormatIdentifier  |  memoryAddress  |  memorySize  |
+            # | addressAndLengthFormatIdentifier | memoryAddress | memorySize |
             data_payload =    0x12.to_bytes(1, 'little')     \
                             + address.to_bytes(2, 'little')  \
                             + 0x01.to_bytes(1, 'little')
@@ -217,7 +223,9 @@ def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
 
     for session in range(0, 0xFF+1):
         payload = b'\x10' + session.to_bytes(1, 'little')
-        rssdi_pkt = CAN(identifier=global_.CAN_IDENTIFIER, length=2, data=payload)
+        rssdi_pkt = CAN(identifier=global_.CAN_IDENTIFIER, 
+                        length=2, 
+                        data=payload)
         ans_rssdi_test = can_socket.sr(rssdi_pkt, verbose=0)[0]
         response_code = ans_rssdi_test[0].answer.data[0]
         if not check_response_code(0x10, response_code):
@@ -230,10 +238,10 @@ def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
             pass
     print("TEST_RSSDI finished.\n")
 
-# TODO: seed randomness
-# TODO: given a packet, reply it
-# TODO: fuzzing create and send packets
-# 
+
+
+#############################  TEST_ISOTPSCANNING  #############################
+
 def isotp_scanning(can_socket: NativeCANSocket =global_.CAN_SOCKET):
     """
     To identify all possible communication endpoints and their supported
@@ -259,14 +267,20 @@ def isotp_scanning(can_socket: NativeCANSocket =global_.CAN_SOCKET):
 
     _ = isotp_scan(can_socket, output_format="text") #, verbose=True)
 
+
+################################  SET_CLIENT_ID  ###############################
 def set_my_can_id(id_value: int) -> None:
     """
-    Set the CAN_ID global variable to work with a specific CAN ID value in next tests. 
+    Set the CAN_ID global variable to work with a specific CAN ID value in next
+    tests. 
 
     :param id_value: the value of the ID to set
     :return: -
     """
     global_.CAN_IDENTIFIER = id_value
+
+
+################################  SET_SERVER_ID  ###############################
 
 def set_listen_can_id(id_value: int) -> None:
     """
@@ -276,4 +290,5 @@ def set_listen_can_id(id_value: int) -> None:
     :return: -
     """
     global_.CAN_SOCKET = NativeCANSocket(channel=global_.CAN_INTERFACE, 
-                               can_filters=[{'can_id': id_value, 'can_mask': 0x7ff}])
+                                         can_filters=[{'can_id': id_value, 
+                                                       'can_mask': 0x7ff}])

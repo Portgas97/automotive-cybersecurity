@@ -1,3 +1,5 @@
+# file containing useful classes 
+
 class graph:
         
         def __init__(self,gdict=None):
@@ -35,7 +37,9 @@ class graph:
                 return edgename
             
 
- # Create the dictionary with graph elements
+# ? examples 
+# TODO delete  
+# Create the dictionary with graph elements
 # graph_elements = { 
 #     "a" : ["b", "c"],
 #     "b" : ["a", "d"],
