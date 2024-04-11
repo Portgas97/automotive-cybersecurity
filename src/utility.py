@@ -6,7 +6,7 @@
 import sys  # to access CLI argments
 import atexit
 import signal
-from colorama import Fore, Style  # coloring output # TO DO better to use loggin library
+from colorama import Fore, Style  # coloring output # TODO: better to use loggin library
 
 from scapy.layers.can import CAN
 
@@ -14,7 +14,6 @@ from scapy.layers.can import CAN
 from scapy.contrib.cansocket_native import NativeCANSocket
 from scapy.contrib.automotive.uds import *
 
-from scapy.contrib.isotp import isotp_scan
 
 from scapy.plist import (
     PacketList,
@@ -25,14 +24,15 @@ from scapy.plist import (
 import global_
 import time
 
-# TO DO understand which one to use
-conf.contribs['CANSocket'] = {'use-python-can': False} # default
-# conf.contribs['cansocket_native'] ## ??? needed? already contribs['isotp'] below
+# conf.contribs['CANSocket'] = {'use-python-can': False} # default
+
+conf.contribs['CAN']['remove-padding'] = True
 conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
+from scapy.contrib.isotp import isotp_scan
 
 def handle_exit():
     """
-    TO DO Operations to be performed at program exit.
+    TODO: Operations to be performed at program exit.
 
     :return: -
     """
@@ -42,7 +42,7 @@ def handle_exit():
 
 def handle_sigterm():
     """
-    TO DO Operations to be performed at sigterm.
+    TODO: Operations to be performed at sigterm.
 
     :return: -
     """
@@ -53,7 +53,7 @@ def handle_sigterm():
 
 def handle_sigint():
     """
-    TO DO Operations to be performed at sigint.
+    TODO: Operations to be performed at sigint.
 
     :return: -
     """
@@ -78,7 +78,7 @@ def send_selected_tester_present(socket: NativeCANSocket,
             selected_request = CAN(identifier=global_.CAN_IDENTIFIER,
                                     length=8,
                                     data=global_.payloads[i])
-            # if VERBOSE_DEBUG:
+            # if global_.VERBOSE_DEBUG:
             #    print("Waiting for tester present...")
 
             tp_ans, _ = socket.sr(selected_request, inter=0.5, retry=-2, timeout=1, verbose=0)
@@ -120,8 +120,8 @@ def print_debug(message: str) -> None:
     :param message: information to print to the console
     :return: -
     """
-    if global_.EXTRA_VERBOSE_DEBUG is True:
-        print(message)
+    if global_.VERBOSE_DEBUG is True:
+        print(Fore.YELLOW + message + Style.RESET_ALL)
 
 def print_new_test_banner() -> None:
     """
@@ -138,8 +138,8 @@ def print_new_test_banner() -> None:
             "#####################################################################\n"
         )
 
-# TO DO decorate this function
-# TO DO test delim function, not done
+# TODO: decorate this function
+# TODO: test delim function, not done
 def print_hex(hex_string, delim=""):
     """
     It prints the hexadecimal value instead of decoding it, e.g. in ASCII. 
@@ -147,9 +147,8 @@ def print_hex(hex_string, delim=""):
     :param hex_string: array of hexadecimal values
     :return: -
     """
-    #print(list(a for a in hex_string))
     value_list = list(''.join('{:02X}'.format(hex_value)) for hex_value in hex_string)
-    if delim is not "":
+    if delim != "":
         print('.'.join(x for x in value_list), delim)
     else:
         print('.'.join(x for x in value_list))
@@ -278,28 +277,28 @@ def print_menu() -> None:
     print(  "Please, choose one of the following command:           \n")
     print(
               Fore.LIGHTRED_EX + "\t help" + Style.RESET_ALL +
-              ": print this menu\n"
+              ": display this menù\n"
 
             + Fore.LIGHTRED_EX + "\t quit" + Style.RESET_ALL +
               ": program exit\n"
 
             + Fore.LIGHTRED_EX + "\t clear" + Style.RESET_ALL +
-              ": clear screen and print command menu\n"
+              ": clear the screen and print this command menu\n"
             
             + Fore.LIGHTRED_EX + "\t isotp_scan" + Style.RESET_ALL +
               ": scans for ISO-TP endpoints\n"
 
             + Fore.LIGHTRED_EX + "\t set_my_ID" + Style.RESET_ALL +
-              ": set the internal state to work with the subsequently passed CAN ID.\n"
+              ": set up the internal state to work with the (next) passed CAN ID.\n"
 
             + Fore.LIGHTRED_EX + "\t set_listen_ID" + Style.RESET_ALL +
-              ": set the internal state to listen messages from the subsequently passed CAN ID.\n"
+              ": set up the internal state to listen messages from the (next) passed CAN ID.\n"
 
             + Fore.LIGHTRED_EX + "\t test_tp" + Style.RESET_ALL +
               ": tester present probe (establish correct packet format)\n"
 
             + Fore.LIGHTRED_EX + "\t test_dds" + Style.RESET_ALL +
-              ": missing text\n"
+              ": find all the available sessions\n"
 
             + Fore.LIGHTRED_EX + "\t test_recu" + Style.RESET_ALL +
               ": missing text\n"
@@ -308,7 +307,7 @@ def print_menu() -> None:
               ": missing text\n"
 
             + Fore.LIGHTRED_EX + "\t other" + Style.RESET_ALL +
-              ": ... TO DO\n"
+              ": ... TODO:\n"
             )
 
 def byte_length(hex_int: int) -> int:
@@ -321,12 +320,112 @@ def byte_length(hex_int: int) -> int:
     return (hex_int.bit_length() + 7) // 8
 
 
-# TO DO creare una create_packet separata
-# TO DO creare una send_and_receive
-# TO DO il fuzzing si farà fuori, tipo burst_packets nel caso si possano
+# TODO: creare una create_packet separata
+# TODO: creare una send_and_receive
+# TODO: il fuzzing si farà fuori, tipo burst_packets nel caso si possano
 # mandare tutti di fila, nel caso di test come rsda dopo ogni pacchetto
 # bisognare chiamare un'altra funzione, quindi questa funzione qui sotto va
 # scomposta.
+
+# TODO: description
+def create_packet(service: int =0, 
+                  subservice: int =0,
+                  data: bytes =b'',
+                  data_len: int =0, 
+                  can_id: int =global_.CAN_IDENTIFIER) -> Packet:
+    
+    if service:
+        pld = service.to_bytes(1, 'little') 
+    if subservice:
+        pld += subservice.to_bytes(1, 'little')
+    if data != b'': 
+        if data_len != 0:
+            pld += data.to_bytes(data_len, 'little')   
+    
+        
+        
+    # concatenate the dlc with fuzz value
+    payload = (len(pld)).to_bytes(1, 'little') + pld
+
+    # TODO: length, payload, and padding must be set properly based on test_tp test 
+
+    # print_debug(f"test packet payload: ")
+    # print_hex(payload)
+    return CAN(identifier=can_id, length=8, data=payload)
+
+# TODO: description
+def send_receive(can_socket: NativeCANSocket, 
+                 packet: Packet,
+                 client_can_id: int =global_.CAN_IDENTIFIER,
+                 multiframe: bool =False) -> tuple[SndRcvList, PacketList]:
+
+    if not multiframe:
+            results, unanswered = can_socket.sr(packet, retry=2, timeout=2, verbose=0)
+    else:
+        results, unanswered = can_socket.sr(packet, retry=2, verbose=0, multi=True)
+    try:
+        results[0]
+    except Exception as e:
+        print_debug(f"Exception: {e}, probably no response from ECU")
+
+    return results, unanswered
+
+
+    # print_debug("response: ")
+    # print_hex(test_ans[0].answer.data)
+    
+    ### response_code = results[0].answer.data[1]
+    ### check_response_code(service, response_code)
+
+# TODO: description
+def fuzz(service: int =0,
+         subservice: int =0,
+         fuzz_service: bool =False, 
+         fuzz_subservice: bool =False,
+         fuzz_data: bool =False,
+         # fuzz_data_len: bool =False, 
+         fuzz_service_range: int =1, 
+         fuzz_subservice_range: int =1, 
+         fuzz_data_range: int =0, 
+         # fuzz_data_len_range: int =0
+         ) -> list[Packet]:
+    
+    packets_list = []
+    if fuzz_service and not fuzz_subservice and not fuzz_data:
+        # fuzz solo service
+        pass
+
+    elif not fuzz_service and fuzz_subservice and not fuzz_data:
+        # fuzz solo subservice
+        for fuzzval in range(fuzz_subservice_range + 1):
+            packets_list.append(create_packet(service, fuzzval))
+
+    
+    elif not fuzz_service_range and not fuzz_subservice and fuzz_data:
+        # fuzz solo data
+        pass
+
+    elif fuzz_service and fuzz_subservice and not fuzz_data:
+        # fuzz service and subservice
+        pass
+    
+    elif fuzz_service and not fuzz_subservice and fuzz_data:
+        # fuzz service and data
+        pass
+    
+    elif not fuzz_service and fuzz_subservice and fuzz_data:
+        # fuzz subservice and data
+        pass
+
+    elif fuzz_service and fuzz_subservice and fuzz_data:
+        # complete fuzzing
+        pass
+
+    else:
+        #error?
+        pass
+    return packets_list
+
 
 def create_and_send_packet(can_socket: NativeCANSocket,
                            service: int,
@@ -349,7 +448,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
     :param fuzz_range: range for payload value fuzzing
     :param inter_tp: wheter to send a tester present before each message
     :param multiframe: if True tells the function to handle the multiframe case
-    :param can_id: CAN identifier
+    :param can_id: client CAN identifier
     :return: two list composed of answered and unanswered messages
     """
 
@@ -378,7 +477,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
         # concatenate the dlc with fuzz value
         payload = (1 + byte_len).to_bytes(1, 'little') + fuzz_value
 
-        # TO DO length, payload, and padding must be set properly based on test_tp test 
+        # TODO: length, payload, and padding must be set properly based on test_tp test 
 
         # print_debug(f"test packet payload: ")
         # print_hex(payload)
@@ -386,7 +485,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
                        length=8, 
                        data=payload)
 
-        # TO DO va aggiunto il padding a fuzz_value??? Dipende da TP, ora come ora no
+        # TODO: va aggiunto il padding a fuzz_value??? Dipende da TP, ora come ora no
 
         # print_debug("waiting for test packet...")
 
@@ -412,7 +511,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
         response_code = results[0].answer.data[1]
         check_response_code(service, response_code)
         
-        # TO DO metterei due liste
+        # TODO: metterei due liste
         # una relativa alle positive responses, in cui si restituisce il payload
         # che ha provocato la risposta e il valore della risposta
         # una con i NRC, etc. 
@@ -421,5 +520,11 @@ def create_and_send_packet(can_socket: NativeCANSocket,
 
 
 
-# TO DO reset ecu hard or soft then clear DTC info (service 0x14 --> 04.14.FF.FF.FF.00.00.00)
+# TODO: reset ecu hard or soft then clear DTC info (service 0x14 --> 04.14.FF.FF.FF.00.00.00)
 
+
+# TODO si possono fare funzioni di utilità basandosi su
+ # QueryAnswer(
+#   query=<CAN  identifier=XXX length=XXX data=XXX |>,
+#   answer=<CAN  flags=XXX identifier=XXX length=XXX reserved=XXX data=XXX |>
+# )

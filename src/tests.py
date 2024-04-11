@@ -10,7 +10,8 @@ from utility import *
 import global_
 
 #################################  TEST_TP  #################################
-def exec_test_tp(can_socket: NativeCANSocket) -> None:
+# TODO: this test is shit because padding is applied underneath
+def exec_test_tp(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     """
     Several tester present packet formats probing.
 
@@ -50,36 +51,58 @@ def exec_test_tp(can_socket: NativeCANSocket) -> None:
             print_success(f"with length: {global_.lengths[idx]}")
 
 
-# TO DO fare un test utility in cui si chiama semplicemente send_selected_tester_present
             
-# TO DO fare un test utility per leggere la sessione di diagnostica corrente (usa RDBI a forse anche un UDS service)
+# TODO: fare un test utility per leggere la sessione di diagnostica corrente (usa RDBI a forse anche un UDS service)
 
-# TO DO bruteforce test passed 
+# TODO: bruteforce test passed 
 
 
 #################################  TEST_DDS  #################################
 # Test for discovering supported diagnostic sessions (TEST_DDS)
-def exec_test_dds(can_socket: NativeCANSocket) -> None:
+def exec_test_dds(can_socket: NativeCANSocket =global_.CAN_SOCKET, session_explored: list[int] =0x01) -> None:
     """
-    It exploits UDS 0x10 and fuzzing to discover supported diagnostic sessions.
+    It explore the session space recursively and builds a graph of available sessions. 
 
     :param can_socket: socket connected to the CAN (or vcan) interface
+    :param session_explored: maintains the already passed sessions in the recursion
     :return: -
     """
-    print_new_test_banner()
-    print("Starting TEST_DDS\n")
 
-    list_ans, list_unans = create_and_send_packet(can_socket=can_socket,
-                                                  service=0x10,
-                                                  fuzz_range=0xFF)
-    for list_qa in list_ans:
-        if list_qa[0].answer.data[1] == 0x50:
-            print(f"Session {hex(list_qa[0].query.data[2])}: available")
+    # PSEUDOCODE
+    # fun(session_explored)
+    # for i in range(session_space):
+    #   k = session_explored.last()
+    #   send(10k)
+    #   if i not in session_explored:
+    #       send(10i)
+    #       if 10i available
+    #           session_explored.push()
+    #           recursive_call
+    # session_explored.pop()
 
-    print("TEST_DSS finished.\n")
+    for new_session in range(1, 256): # scan the session space
+        active_session = session_explored[-1] 
+        dsc = create_packet(0x10, active_session)
+        res, _ = send_receive(can_socket, dsc) # maintain the current session
+        #check_response_code(0x10, res[0].answer.data[1]) # TODO troppe stampe
+
+        if new_session not in session_explored: # if not already found
+            session_probe = create_packet(0x10, new_session)
+            res, _ = send_receive(can_socket, session_probe)
+
+            if res[0].answer.data[1] == 0x50: # session is reachable
+                session_explored.append(new_session)
+
+                global_.SessionsGraph.addVertex(new_session)
+                global_.SessionsGraph.AddEdge({active_session, new_session})
+
+                exec_test_dds(can_socket, session_explored) # recursive exploration from new session
+
+    session_explored.pop(-1)
+
 
 #################################  TEST_RECU  #################################
-def exec_test_recu(can_socket: NativeCANSocket) -> None:
+def exec_test_recu(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     """
     It requests and ECU hard reset by UDS service 0x11.
 
@@ -90,7 +113,7 @@ def exec_test_recu(can_socket: NativeCANSocket) -> None:
     print_new_test_banner()
     print("Starting TEST_RECU\n")
 
-    # TO DO apply in available sessions
+    # TODO: apply in available sessions
 
     create_and_send_packet(can_socket=can_socket, 
                            service=0x11, 
@@ -102,16 +125,16 @@ def exec_test_recu(can_socket: NativeCANSocket) -> None:
     print("TEST_RECU finished.\n")
 
 #################################  TEST_  #################################
-# test for measuring RNBG entropy TO DO
+# test for measuring RNBG entropy TODO:
 
 #################################  TEST_  #################################
-# test for control ECU communication TO DO
+# test for control ECU communication TODO:
 
 #################################  TEST_  #################################
-# test for control link baud rate TO DO
+# test for control link baud rate TODO:
 
 #################################  TEST_RSDI  #################################
-def exec_test_rdbi(can_socket: NativeCANSocket) -> None:
+def exec_test_rdbi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     """
     It requests an ECU data read, exploiting the 0x22 UDS service.
 
@@ -128,7 +151,7 @@ def exec_test_rdbi(can_socket: NativeCANSocket) -> None:
     print("TEST_RDBI finished.\n")
 
 #################################  TEST_RSDA  #################################
-def exec_test_rsda(can_socket: NativeCANSocket, session: bytes = b'') -> None:
+def exec_test_rsda(can_socket: NativeCANSocket =global_.CAN_SOCKET, session: bytes = b'') -> None:
     """
     It requests an ECU data read by memory address, service 0x23.
 
@@ -172,8 +195,8 @@ def exec_test_rsda(can_socket: NativeCANSocket, session: bytes = b'') -> None:
     
 
 #################################  TEST_RSSDI  ################################
-# TO DO rebuild this function
-def exec_test_rssdi(can_socket: NativeCANSocket) -> None:
+# TODO: rebuild this function
+def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     """
     It requests an ECU data read, exploiting the 0x24 UDS service.
 
@@ -196,60 +219,39 @@ def exec_test_rssdi(can_socket: NativeCANSocket) -> None:
         if not check_response_code(0x10, response_code):
             print_error("ERROR in packet response")
         else:
-            # TO DO multi-framing must be handled in the callee
-            # TO DO some information should be recorded
+            # TODO: multi-framing must be handled in the callee
+            # TODO: some information should be recorded
             create_and_send_packet(can_socket, 0x24, 0xFFFF, multiframe=True)
     print("TEST_RSSDI finished.\n")
 
-# TO DO seed randomness
-# TO DO given a packet, reply it
-# TO DO fuzzing create and send packets
+# TODO: seed randomness
+# TODO: given a packet, reply it
+# TODO: fuzzing create and send packets
 # 
-def isotp_scanning(can_socket: NativeCANSocket):
+def isotp_scanning(can_socket: NativeCANSocket =global_.CAN_SOCKET):
     """
-    A transport layer scan.
+    To identify all possible communication endpoints and their supported
+    application layer protocols, a transport layer scan has to be performed
+    first.
+    Procedure:
+      - Choose an addressing scheme
+      - Craft FF (first-frame) with payload length e.g. 100
+      - Send FF with all possible addresses according to the addressing scheme
+      - Listen for FC (flow-control) frames according to the chosen addressing
+        scheme
+      - If FC is detected, obtain all address information and information about
+        padding from the last FF and the received FC (e.g. source address SA,
+        target address TA, address extension AE, addressing scheme, padding)
+    
+    One could also perform passive scanning, not producing additional load
 
     :param can_socket: socket connected to the CAN (or vcan) interface
     :return: -
     """
-    # To identify all possible communication endpoints and their supported
-    # application layer protocols, a transport layer scan has to be performed
-    # first.
-    # IDS will immediately see illegitimate traffic. This may disturb
-    # safety-critical and real-time communication
-    # Procedure:
-    #   - Choose an addressing scheme
-    #   - Craft FF (first-frame) with payload length e.g. 100
-    #   - Send FF with all possible addresses according to the addressing scheme
-    #   - Listen for FC (flow-control) frames according to the chosen addressing
-    #     scheme
-    #   - If FC is detected, obtain all address information and information about
-    #     padding from the last FF and the received FC (e.g. source address SA,
-    #     target address TA, address extension AE, addressing scheme, padding)
-    #
-    # One could also perform passive scanning, not producing additional load
-
-    # # # # # # # # # # # # # # # # #  STEP 1  # # # # # # # # # # # # # # # # #
-    # On CAN networks, ISOTP (ISO-15765 Transport Protocol) is a communication
-    # protocol used in the automotive industry to transmit data. It is designed to
-    # provide a reliable and efficient way to transfer large amounts of data,
-    # such as software updates and diagnostic data.
-    #
-    # There are four special frames:
-    #   - single frame
-    #   - first frame
-    #   - consecutive frame
-    #   - flow control frame
-    #
-    # It is used to address every individual ECU in the entire vehicle network.
-    # The gateway ECU will route ISOTP packets into the right subnet automatically.
-    # ISOTP supports several addressing schemes. Unfortunately, every OEM uses
-    # different addressing schemes: a good practice is to scan for ECUs with normal
-    # addressing with a CAN identifier range from 0x500-0x7ff.
-
+    
     print("\nISO-TP SCANNING...", end="")
 
-    isotp_scan_socket = isotp_scan(can_socket, verbose=True)
+    _ = isotp_scan(can_socket, output_format="text") #, verbose=True)
 
 def set_my_can_id(id_value: int) -> None:
     """
