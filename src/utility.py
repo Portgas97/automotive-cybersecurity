@@ -4,15 +4,15 @@
 # from scapy.sendrecv import sr1, sr
 
 import sys  # to access CLI argments
-import atexit
-import signal
+import atexit # TODO maybe later
+import signal # TODO maybe later
 from colorama import Fore, Style  # coloring output # TODO: better to use loggin library
 
 from scapy.layers.can import CAN
 
 # from scapy.contrib.isotp import *
 from scapy.contrib.cansocket_native import NativeCANSocket
-from scapy.contrib.automotive.uds import *
+from scapy.contrib.automotive.uds import conf, Packet
 
 
 from scapy.plist import (
@@ -22,13 +22,14 @@ from scapy.plist import (
 )
 
 import global_
-import time
+import time # TODO sometime used for debugging
 
-# conf.contribs['CANSocket'] = {'use-python-can': False} # default
 
+# conf.contribs['CANSocket'] = {'use-python-can': False} 
 conf.contribs['CAN']['remove-padding'] = True
 conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
-from scapy.contrib.isotp import isotp_scan
+from scapy.contrib.isotp import isotp_scan # must be after import above
+
 
 def handle_exit():
     """
@@ -265,12 +266,12 @@ def print_menu() -> None:
     :return: -
     """
     print( Fore.LIGHTRED_EX +
-            "          _______         \n"
-            "         //  ||\ \        \n"
-            "   _____//___||_\ \___    \n"
-            "   )  _          _    \   \n"
-            "   |_/ \________/ \___|   \n"
-            "  ___\_/________\_/______ \n"
+            "          _______         \n" # type: ignore 
+            "         //  ||\ \        \n" # type: ignore
+            "   _____//___||_\ \___    \n" # type: ignore
+            "   )  _          _    \   \n" # type: ignore
+            "   |_/ \________/ \___|   \n" # type: ignore
+            "  ___\_/________\_/______ \n" # type: ignore
            + Style.RESET_ALL
         )
 
