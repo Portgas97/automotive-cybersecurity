@@ -39,7 +39,7 @@ class graph:
     # Prints the graph structure
         def printGraph(self):
             for vrtx in self.gdict:
-                print(f"{vrtx} -> {self.gdict[vrtx]}")
+                print(f"{vrtx} \t-> \t{self.gdict[vrtx]}")
             
     # Check if value is present in subtree
         def findChildNode(self, root_node: int, value: int) -> bool:

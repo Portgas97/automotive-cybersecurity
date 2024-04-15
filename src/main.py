@@ -23,6 +23,7 @@ CAN_INTERFACE = "can0" # interface for CAN communication
 
 def main():
 
+    global VERBOSE_DEBUG, CAN_IDENTIFIER, CAN_SOCKET, CAN_INTERFACE
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-v", "--verbose", 
@@ -41,9 +42,7 @@ def main():
     CAN_INTERFACE = args.interface
     print_debug("Socket initialized with can0 and server_id == 0x7ED")
 
-    # ! tests.py/set_listen_can_id is it correct handled?? 
-    # ? forse basta mettere nofilter=1 nella chiamata a sr per ricevere un po tutto
-
+    # ! forse basta mettere nofilter=1 nella chiamata a sr per ricevere un po tutto
     CAN_SOCKET = NativeCANSocket(channel=CAN_INTERFACE,  
                          can_filters=[{'can_id': SERVER_CAN_ID,
                                        'can_mask': 0x7ff}]
@@ -79,12 +78,13 @@ def main():
 
         elif command == "set_my_ID":
             can_id = input("Enter the CAN bus ID to test (hex w/o 0x): ")
-            # set_my_can_id(int(can_id, 16)) # TODO correct
+            CAN_IDENTIFIER = int(can_id, 16)
         
         elif command == "set_listen_ID":
             can_id = input("Enter the CAN ID for sniffing (hex w/o 0x): ")
-            # set_listen_can_id(int(can_id, 16)) # TODO correct
-
+            CAN_SOCKET = NativeCANSocket(channel=CAN_INTERFACE, 
+                                         can_filters=[{'can_id': int(can_id, 16), 
+                                                       'can_mask': 0x7ff}])
         elif command == "test_tp":
             exec_test_tp(can_socket=CAN_SOCKET, can_id=CAN_IDENTIFIER) 
 
@@ -92,14 +92,21 @@ def main():
             print_new_test_banner()
             print("Starting TEST_DDS\n")
 
+            from halo import Halo
+            spinner = Halo(text='Executing script', spinner='bouncingBar')
+            spinner.start()
+
             SessionsGraph = classes.graph({0x01 : []}) # Default diagnostic always available 
             exec_test_dds(can_socket=CAN_SOCKET, 
                           client_can_id=CAN_IDENTIFIER, 
                           session_graph=SessionsGraph)
             
-            print("graph display:")
+            spinner.stop()
+
+            print("\n Discovered sessions: ")
             SessionsGraph.printGraph()
-            print("TEST_DSS finished.\n")
+
+            print("\nTEST_DSS finished.\n")
 
         elif command == "test_recu":
             exec_test_recu(can_socket=CAN_SOCKET)

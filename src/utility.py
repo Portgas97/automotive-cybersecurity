@@ -30,7 +30,6 @@ from scapy.contrib.isotp import isotp_scan # must be after import above
 # )
 
 
-
 def handle_exit():
     """
     TODO: Operations to be performed at program exit.

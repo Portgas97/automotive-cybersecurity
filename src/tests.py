@@ -38,6 +38,7 @@ def exec_test_tp(can_socket: NativeCANSocket, can_id: int) -> None:
     :param can_socket: socket connected to the CAN (or vcan) interface
     :return: -
     """
+    global lengths, payloads, passed
     print("\nBLACK-BOX TESTING\n")
     print("First, we test for length and packet format with TP CAN message. \n"
           "The following packets are sent (note that probably the underlying\n"
@@ -79,6 +80,7 @@ def send_selected_tester_present(socket: NativeCANSocket,
     :param can_id: # TODO and check all the other functions for this param
     :return: True at the first positive response, False otherwise.
     """
+    global payloads, passed
 
     for i, flag in enumerate(passed):
         if flag is True:
@@ -117,12 +119,19 @@ def exec_test_dds(can_socket: NativeCANSocket,
     space
     :return: -
     """
-    
-    for new_session in range(1, 256): # scan the session space
+
+    # scan the session space
+    for new_session in range(1, 256): 
+
         active_session = current_node
-        dsc = create_packet(can_id=client_can_id, service=0x10, subservice=active_session)
-        res, _ = send_receive(dsc, can_socket) # , client_can_id) # maintain the current session
+        dsc = create_packet(can_id=client_can_id, 
+                            service=0x10, 
+                            subservice=active_session)
+        
+        # maintain the current session
+        res, _ = send_receive(dsc, can_socket) 
         # check_response_code(0x10, res[0].answer.data[1]) # TODO troppe stampe
+        # TODO other NRC can be analysed, not only positive responses
 
         # if not already found
         if not session_graph.findChildNode(active_session, new_session): 
@@ -297,27 +306,3 @@ def isotp_scanning(can_socket: NativeCANSocket) -> None:
     _ = isotp_scan(can_socket, output_format="text") #, verbose=True)
 
 
-################################  SET_CLIENT_ID  ###############################
-# def set_my_can_id(id_value: int) -> None:
-#     """
-#     Set the CAN_ID global variable to work with a specific CAN ID value in next
-#     tests. 
-
-#     :param id_value: the value of the ID to set
-#     :return: -
-#     """
-#     CAN_IDENTIFIER = id_value
-
-
-################################  SET_SERVER_ID  ###############################
-
-# def set_listen_can_id(id_value: int) -> None:
-#     """
-#     Updates the socket can filters to listen for correct messages. 
-
-#     :param id_value: the value of the ID to listen to
-#     :return: -
-#     """
-#     CAN_SOCKET = NativeCANSocket(channel=CAN_INTERFACE, 
-#                                          can_filters=[{'can_id': id_value, 
-#                                                        'can_mask': 0x7ff}])
