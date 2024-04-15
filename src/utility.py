@@ -15,9 +15,6 @@ from scapy.plist import (
     SndRcvList,
 )
 
-import global_
-import time # TODO sometime used for debugging
-
 # conf.contribs['CANSocket'] = {'use-python-can': False} 
 conf.contribs['CAN']['remove-padding'] = True
 conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
@@ -66,38 +63,6 @@ def handle_sigint():
 # signal.signal(signal.SIGINT, handle_sigint())
 
 
-def send_selected_tester_present(socket: NativeCANSocket,
-                                 passed_tests: list # list[bool] produce error
-                                 ) -> bool:
-    """
-    Sends just one TP packet, based on previously determined conditions.
-
-    :param socket: the socket connected to the can or vcan interface
-    :param passed_tests: array of bools, to retrieve info of passed TP formats
-    :return: True at the first positive response, False otherwise.
-    """
-
-    for i, flag in enumerate(passed_tests):
-        if flag is True:
-            selected_request = CAN(identifier=global_.CAN_IDENTIFIER,
-                                    length=8,
-                                    data=global_.payloads[i])
-            # if global_.VERBOSE_DEBUG:
-            #    print("Waiting for tester present...")
-
-            tp_ans, _ = socket.sr(selected_request, inter=0.5, retry=-2, timeout=1, verbose=0)
-            # time.sleep(5)
-            # print("tester present response: ")
-            # print(tp_ans[0].answer.data)
-            if tp_ans[0] and tp_ans[0].answer.data[1] == 0x7E:
-                return True
-            else:
-                continue
-
-    print_error("Something went wrong in TesterPresent probe\n")
-    return False
-
-
 def print_error(error_message: str) -> None:
     """
     Prints a red error message, only if verbose output is set.
@@ -105,7 +70,8 @@ def print_error(error_message: str) -> None:
     :param error_message: string to print to the console, error information
     :return: -
     """
-    if global_.VERBOSE_DEBUG is True:
+    from main import VERBOSE_DEBUG
+    if VERBOSE_DEBUG is True:
         print(Fore.RED + error_message + Style.RESET_ALL)
 
 
@@ -116,7 +82,8 @@ def print_success(message: str) -> None:
     :param message: information to print to the console
     :return: -
     """
-    if global_.VERBOSE_DEBUG is True:
+    from main import VERBOSE_DEBUG
+    if VERBOSE_DEBUG is True:
         print(Fore.GREEN + message + Style.RESET_ALL)
 
 
@@ -127,7 +94,8 @@ def print_debug(message: str) -> None:
     :param message: information to print to the console
     :return: -
     """
-    if global_.VERBOSE_DEBUG is True:
+    from main import VERBOSE_DEBUG
+    if VERBOSE_DEBUG is True:
         print(Fore.YELLOW + message + Style.RESET_ALL)
 
 
@@ -137,7 +105,8 @@ def print_new_test_banner() -> None:
 
     :return: -
     """
-    if global_.VERBOSE_DEBUG is True:
+    from main import VERBOSE_DEBUG
+    if VERBOSE_DEBUG is True:
         print(
             "#####################################################################\n"
             "#####################################################################\n"
@@ -330,11 +299,12 @@ def byte_length(hex_int: int) -> int:
     return (hex_int.bit_length() + 7) // 8
 
 
-def create_packet(service: int =0, 
+def create_packet(can_id: int, 
+                  service: int =0, 
                   subservice: int =0,
                   data: bytes =b'',
                   data_len: int =0, 
-                  can_id: int =global_.CAN_IDENTIFIER) -> Packet:
+                  ) -> Packet:
     """
     Builds a CAN packet depending on the parameter passed. 
 
@@ -364,8 +334,7 @@ def create_packet(service: int =0,
 
 
 def send_receive(packet: Packet, 
-                 can_socket: NativeCANSocket =global_.CAN_SOCKET, 
-                 client_can_id: int =global_.CAN_IDENTIFIER,
+                 can_socket: NativeCANSocket, 
                  multiframe: bool =False) -> tuple[SndRcvList, PacketList]:
     """
     Calls the sr() scapy function, it distinguish between single and multiframe
@@ -373,14 +342,13 @@ def send_receive(packet: Packet,
 
     :param can_socket: socket to work with
     :param packet: CAN packet to send
-    :param client_can_id: client CAN ID to use in the communication
     :param multiframe: flag to enable multiframe handling
     :return: a tuple of answered query-answer and unanswered packets
     """
     if not multiframe:
-            results, unanswered = can_socket.sr(packet, retry=2, timeout=2, verbose=0)
+            results, unanswered = can_socket.sr(packet, retry=0, timeout=0.3, verbose=0)
     else:
-        results, unanswered = can_socket.sr(packet, retry=2, verbose=0, multi=True)
+        results, unanswered = can_socket.sr(packet, verbose=1, multi=True)
     try:
         results[0]
     except Exception as e:
@@ -389,7 +357,8 @@ def send_receive(packet: Packet,
     return results, unanswered
 
 
-def fuzz(service: int =0,
+def fuzz(can_id: int, 
+         service: int =0,
          subservice: int =0,
          fuzz_service: bool =False, 
          fuzz_subservice: bool =False,
@@ -398,7 +367,7 @@ def fuzz(service: int =0,
          fuzz_service_range: int =1, 
          fuzz_subservice_range: int =1, 
          fuzz_data_range: int =0, 
-         # fuzz_data_len_range: int =0
+         # fuzz_data_len_range: int =0, 
          ) -> list[Packet]:
     """
     Creates a list of packets based on fuzzing conditions. 
@@ -422,7 +391,9 @@ def fuzz(service: int =0,
     elif not fuzz_service and fuzz_subservice and not fuzz_data:
         # fuzz solo subservice
         for fuzzval in range(fuzz_subservice_range + 1):
-            packets_list.append(create_packet(service, fuzzval))
+            packets_list.append(create_packet(can_id=can_id,  
+                                              service=service,
+                                              subservice=fuzzval))
 
     elif not fuzz_service_range and not fuzz_subservice and fuzz_data:
         # fuzz solo data
@@ -460,7 +431,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
                            fuzz_range: int =0,
                            inter_tp: bool =False, 
                            multiframe: bool =False,
-                           can_id: int =global_.CAN_IDENTIFIER
+                           can_id: int =CAN_IDENTIFIER
                            ) -> tuple[SndRcvList, PacketList]:
     
     It builds a CAN packet given the args, sends it and parse the response.
@@ -483,7 +454,7 @@ def create_and_send_packet(can_socket: NativeCANSocket,
         #print_debug(f"\nidx: {idx}")
 
         if inter_tp:
-            if not send_selected_tester_present(can_socket, global_.passed):
+            if not send_selected_tester_present(can_socket, passed):
                 print_error("ERROR: tp failed!")
                 return 
             print_success("tester present correctly received")

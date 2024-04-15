@@ -1,8 +1,7 @@
 # file containing the testcases for ECU blackbox testing
 
 from utility import *
-import global_
-
+import classes
             
 # TODO: fare un test utility per leggere la sessione di diagnostica corrente 
 # (usa RDBI a forse anche un UDS service)
@@ -13,10 +12,24 @@ import global_
 # TODO test for control link baud rate 
 
 
+# variables used to establish the correct packet format
+# through tester present probings
+lengths = [1, 2, 1, 2, 2, 2, 1, 2] # TODO: in the future, this variable now is used only in a print
+payloads =  [  # TODO: in the future, this variable now is used in a print and in another file (thus no global)
+            b'\x01\x3E',
+            b'\x02\x3E\x00',
+            b'\x01\x3E\x00\x00\x00\x00\x00\x00',
+            b'\x02\x3E\x00\x00\x00\x00\x00\x00',
+            b'\x02\x3E\x80',
+            b'\x02\x3E\x80\x00\x00\x00\x00\x00', 
+            b'\x01\x3E\x66\x66\x66\x66\x66\x66',
+            b'\x02\x3E\x00\x55\x55\x55\x55\x55'
+            ]
+passed = [False for i in range(0,8)]
 
 #################################  TEST_TP  #################################
 # TODO: this test is shit because padding is applied underneath
-def exec_test_tp(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
+def exec_test_tp(can_socket: NativeCANSocket, can_id: int) -> None:
     """
     Several tester present packet formats probing.
 
@@ -33,78 +46,107 @@ def exec_test_tp(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     # ID is a value on 11 bits
     # testing for different lengths and data values
     for i in range(0,8):
-        tp = CAN(identifier=global_.CAN_IDENTIFIER,
+        tp = CAN(identifier=can_id,
                  length=8,
-                 data=global_.payloads[i])
+                 data=payloads[i])
 
         ans, _ = can_socket.sr(tp, timeout=1, verbose=0)
-
         # ans[0] to read the first answer
         # ans[0].answer to access the CAN object in the query-answer object
         # note that we may not receive a response, thus the exception handling      
         try: 
             if ans[0] and ans[0].answer.data[1] == 0x7E: # positive response
-                global_.passed[i] = True
+                passed[i] = True
         except IndexError:
             continue
         
     print("Checking passed tests...\n")
-    for idx, flag in enumerate(global_.passed):
+    for idx, flag in enumerate(passed):
         if flag:
             print_success(f"Positive response from payload: ")
-            print_hex(global_.payloads[idx])
-            print_success(f"with length: {global_.lengths[idx]}")
+            print_hex(payloads[idx])
+            print_success(f"with length: {lengths[idx]}")
 
+
+
+def send_selected_tester_present(socket: NativeCANSocket,
+                                 can_id: int,
+                                 ) -> bool:
+    """
+    Sends just one TP packet, based on previously determined conditions.
+
+    :param socket: the socket connected to the can or vcan interface
+    :param can_id: # TODO and check all the other functions for this param
+    :return: True at the first positive response, False otherwise.
+    """
+
+    for i, flag in enumerate(passed):
+        if flag is True:
+            selected_request = CAN(identifier=can_id,
+                                    length=8,
+                                    data=payloads[i])
+            # if VERBOSE_DEBUG:
+            #    print("Waiting for tester present...")
+
+            tp_ans, _ = socket.sr(selected_request, inter=0.5, retry=-2, timeout=1, verbose=0)
+            # print("tester present response: ")
+            # print(tp_ans[0].answer.data)
+            if tp_ans[0] and tp_ans[0].answer.data[1] == 0x7E:
+                return True
+            else:
+                continue
+
+    print_error("Something went wrong in TesterPresent probe\n")
+    return False
 
 #################################  TEST_DDS  #################################
 # Test for discovering supported diagnostic sessions (TEST_DDS)
-def exec_test_dds(can_socket: NativeCANSocket =global_.CAN_SOCKET, 
-                  session_explored: list[int] =[0x01]) -> None:
+def exec_test_dds(can_socket: NativeCANSocket, 
+                  client_can_id: int,
+                  session_graph: classes.graph, 
+                  current_node: int=0x01) -> None:
     """
     It explore the session space recursively and builds a graph of available 
     sessions. 
 
     :param can_socket: socket connected to the CAN (or vcan) interface
-    :param session_explored: maintains already seen sessions in the recursion
+    :param client_can_id: maintains already seen sessions in the recursion
+    :param session_graph: graph representing the automaton of the available ECU 
+    sessions
+    :param current_node: where the function is arrived in the exploration of the
+    space
     :return: -
     """
-
-    # PSEUDOCODE
-    # fun(session_explored)
-    # for i in range(session_space):
-    #   k = session_explored.last()
-    #   send(10k)
-    #   if i not in session_explored:
-    #       send(10i)
-    #       if 10i available
-    #           session_explored.push()
-    #           recursive_call
-    # session_explored.pop()
-
+    
     for new_session in range(1, 256): # scan the session space
-        active_session = session_explored[-1] 
-        dsc = create_packet(0x10, active_session)
-        res, _ = send_receive(dsc) # maintain the current session
-        #check_response_code(0x10, res[0].answer.data[1]) # TODO troppe stampe
+        active_session = current_node
+        dsc = create_packet(can_id=client_can_id, service=0x10, subservice=active_session)
+        res, _ = send_receive(dsc, can_socket) # , client_can_id) # maintain the current session
+        # check_response_code(0x10, res[0].answer.data[1]) # TODO troppe stampe
 
-        if new_session not in session_explored: # if not already found
-            session_probe = create_packet(0x10, new_session)
-            res, _ = send_receive(session_probe)
+        # if not already found
+        if not session_graph.findChildNode(active_session, new_session): 
+            session_probe = create_packet(can_id=client_can_id, 
+                                          service=0x10, 
+                                          subservice=new_session)
 
-            if res[0].answer.data[1] == 0x50: # session is reachable
-                session_explored.append(new_session)
+            res, _ = send_receive(session_probe, can_socket)
 
-                global_.SessionsGraph.addVertex(new_session)
-                global_.SessionsGraph.AddEdge({active_session, new_session})
-
-                # recursive exploration from new session
-                exec_test_dds(can_socket, session_explored) 
-
-    session_explored.pop(-1)
+            try: 
+                if res[0].answer.data[1] == 0x50: # session is reachable
+                    session_graph.AddEdge([active_session, new_session])
+                    session_graph.addVertex(new_session)
+                    # recursive exploration from new session
+                    exec_test_dds(can_socket, 
+                                  client_can_id, 
+                                  session_graph, 
+                                  current_node=new_session) 
+            except:
+                pass
 
 
 #################################  TEST_RECU  #################################
-def exec_test_recu(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
+def exec_test_recu(can_socket: NativeCANSocket) -> None:
     """
     It requests and ECU hard reset by UDS service 0x11.
 
@@ -129,7 +171,7 @@ def exec_test_recu(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
 
 
 #################################  TEST_RSDI  #################################
-def exec_test_rdbi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
+def exec_test_rdbi(can_socket: NativeCANSocket) -> None:
     """
     It requests an ECU data read, exploiting the 0x22 UDS service.
 
@@ -147,7 +189,7 @@ def exec_test_rdbi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     print("TEST_RDBI finished.\n")
 
 #################################  TEST_RSDA  #################################
-def exec_test_rsda(can_socket: NativeCANSocket =global_.CAN_SOCKET, 
+def exec_test_rsda(can_socket: NativeCANSocket, 
                    session: bytes = b'') -> None:
     """
     It requests an ECU data read by memory address, service 0x23.
@@ -194,7 +236,7 @@ def exec_test_rsda(can_socket: NativeCANSocket =global_.CAN_SOCKET,
 
 #################################  TEST_RSSDI  ################################
 # TODO: rebuild this function
-def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
+def exec_test_rssdi(can_socket: NativeCANSocket, can_id: int) -> None:
     """
     It requests an ECU data read, exploiting the 0x24 UDS service.
 
@@ -205,13 +247,13 @@ def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
     print_new_test_banner()
     print("Starting TEST_RSSDI\n")
 
-    if not send_selected_tester_present(can_socket, global_.passed):
+    if not send_selected_tester_present(can_socket, can_id):
         print_error("ERROR: tp failed!")
     print_success("tester present correctly received")
 
     for session in range(0, 0xFF+1):
         payload = b'\x10' + session.to_bytes(1, 'little')
-        rssdi_pkt = CAN(identifier=global_.CAN_IDENTIFIER, 
+        rssdi_pkt = CAN(identifier=can_id, 
                         length=2, 
                         data=payload)
         ans_rssdi_test = can_socket.sr(rssdi_pkt, verbose=0)[0]
@@ -229,7 +271,7 @@ def exec_test_rssdi(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
 
 
 #############################  TEST_ISOTPSCANNING  #############################
-def isotp_scanning(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
+def isotp_scanning(can_socket: NativeCANSocket) -> None:
     """
     To identify all possible communication endpoints and their supported
     application layer protocols, a transport layer scan has to be performed
@@ -256,26 +298,26 @@ def isotp_scanning(can_socket: NativeCANSocket =global_.CAN_SOCKET) -> None:
 
 
 ################################  SET_CLIENT_ID  ###############################
-def set_my_can_id(id_value: int) -> None:
-    """
-    Set the CAN_ID global variable to work with a specific CAN ID value in next
-    tests. 
+# def set_my_can_id(id_value: int) -> None:
+#     """
+#     Set the CAN_ID global variable to work with a specific CAN ID value in next
+#     tests. 
 
-    :param id_value: the value of the ID to set
-    :return: -
-    """
-    global_.CAN_IDENTIFIER = id_value
+#     :param id_value: the value of the ID to set
+#     :return: -
+#     """
+#     CAN_IDENTIFIER = id_value
 
 
 ################################  SET_SERVER_ID  ###############################
 
-def set_listen_can_id(id_value: int) -> None:
-    """
-    Updates the socket can filters to listen for correct messages. 
+# def set_listen_can_id(id_value: int) -> None:
+#     """
+#     Updates the socket can filters to listen for correct messages. 
 
-    :param id_value: the value of the ID to listen to
-    :return: -
-    """
-    global_.CAN_SOCKET = NativeCANSocket(channel=global_.CAN_INTERFACE, 
-                                         can_filters=[{'can_id': id_value, 
-                                                       'can_mask': 0x7ff}])
+#     :param id_value: the value of the ID to listen to
+#     :return: -
+#     """
+#     CAN_SOCKET = NativeCANSocket(channel=CAN_INTERFACE, 
+#                                          can_filters=[{'can_id': id_value, 
+#                                                        'can_mask': 0x7ff}])

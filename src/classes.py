@@ -20,7 +20,7 @@ class graph:
 
     # Add the new edge
         def AddEdge(self, edge):
-            edge = set(edge)
+            # edge = set(edge)
             (vrtx1, vrtx2) = tuple(edge)
             if vrtx1 in self.gdict:
                 self.gdict[vrtx1].append(vrtx2)
@@ -35,6 +35,18 @@ class graph:
                     if {nxtvrtx, vrtx} not in edgename:
                         edgename.append({vrtx, nxtvrtx})
                 return edgename
+    
+    # Prints the graph structure
+        def printGraph(self):
+            for vrtx in self.gdict:
+                print(f"{vrtx} -> {self.gdict[vrtx]}")
+            
+    # Check if value is present in subtree
+        def findChildNode(self, root_node: int, value: int) -> bool:
+            if (value == root_node) or (value in self.gdict[root_node]):
+                return True
+            return False
+
             
 
 # ? examples 
