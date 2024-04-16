@@ -1,10 +1,12 @@
 import sys  # to access CLI argments
 import atexit # TODO maybe later
 import signal # TODO maybe later
+import time
+
 from colorama import Fore, Style  # coloring output # TODO: better to use loggin library
 
-from scapy.layers.can import CAN
 
+from scapy.layers.can import CAN
 # from scapy.contrib.isotp import *
 from scapy.contrib.cansocket_native import NativeCANSocket
 from scapy.contrib.automotive.uds import conf, Packet
@@ -21,14 +23,13 @@ conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
 from scapy.contrib.isotp import isotp_scan # must be after import above
 
 
-
-# TODO: reset ecu hard or soft then clear DTC info (service 0x14 --> 04.14.FF.FF.FF.00.00.00)
 # TODO si possono fare funzioni di utilità basandosi su
  # QueryAnswer(
 #   query=<CAN  identifier=XXX length=XXX data=XXX |>,
 #   answer=<CAN  flags=XXX identifier=XXX length=XXX reserved=XXX data=XXX |>
 # )
 
+from classes import config_manager as ctx_man
 
 def handle_exit():
     """
@@ -69,8 +70,7 @@ def print_error(error_message: str) -> None:
     :param error_message: string to print to the console, error information
     :return: -
     """
-    from main import VERBOSE_DEBUG
-    if VERBOSE_DEBUG is True:
+    if ctx_man.VERBOSE_DEBUG:
         print(Fore.RED + error_message + Style.RESET_ALL)
 
 
@@ -81,8 +81,7 @@ def print_success(message: str) -> None:
     :param message: information to print to the console
     :return: -
     """
-    from main import VERBOSE_DEBUG
-    if VERBOSE_DEBUG is True:
+    if ctx_man.VERBOSE_DEBUG:
         print(Fore.GREEN + message + Style.RESET_ALL)
 
 
@@ -93,8 +92,7 @@ def print_debug(message: str) -> None:
     :param message: information to print to the console
     :return: -
     """
-    from main import VERBOSE_DEBUG
-    if VERBOSE_DEBUG is True:
+    if ctx_man.VERBOSE_DEBUG:
         print(Fore.YELLOW + message + Style.RESET_ALL)
 
 
@@ -104,9 +102,9 @@ def print_new_test_banner() -> None:
 
     :return: -
     """
-    from main import VERBOSE_DEBUG
-    if VERBOSE_DEBUG is True:
+    if ctx_man.VERBOSE_DEBUG:
         print(
+            "\n"
             "#####################################################################\n"
             "#####################################################################\n"
             "############################## NEW TEST #############################\n"
@@ -314,6 +312,7 @@ def create_packet(can_id: int,
     :param can_id: CAN identifier
     :return: the built CAN packet
     """
+    pld: bytes
     if service:
         pld = service.to_bytes(1, 'little')
     if subservice:
@@ -357,7 +356,7 @@ def send_receive(packet: Packet,
 
 
 def fuzz(can_id: int, 
-         service: int =0,
+         service: int =0, # TODO i don't know, myabe it will be always required (except for service fun obv.)
          subservice: int =0,
          fuzz_service: bool =False, 
          fuzz_subservice: bool =False,
@@ -418,98 +417,3 @@ def fuzz(can_id: int,
         #error?
         pass
     return packets_list
-
-
-# TODO delete when confident
-"""
-def create_and_send_packet(can_socket: NativeCANSocket,
-                           service: int,
-                           subservice: int =None,
-                           data: int=None,
-                           data_len: int=0,
-                           fuzz_range: int =0,
-                           inter_tp: bool =False, 
-                           multiframe: bool =False,
-                           can_id: int =CAN_IDENTIFIER
-                           ) -> tuple[SndRcvList, PacketList]:
-    
-    It builds a CAN packet given the args, sends it and parse the response.
-
-    :param can_socket: socket connected to the can interface
-    :param service: UDS service to send
-    :param subservice: specifies an exact subservice for the request
-    :param data: information needed for some service
-    :param data_len: on how many byte data parameter is passed
-    :param fuzz_range: range for payload value fuzzing
-    :param inter_tp: wheter to send a tester present before each message
-    :param multiframe: if True tells the function to handle the multiframe case
-    :param can_id: client CAN identifier
-    :return: two list composed of answered and unanswered messages
-    
-
-    ans_list = []
-    for idx in range(0, fuzz_range + 1):
-
-        #print_debug(f"\nidx: {idx}")
-
-        if inter_tp:
-            if not send_selected_tester_present(can_socket, passed):
-                print_error("ERROR: tp failed!")
-                return 
-            print_success("tester present correctly received")
-        
-        byte_len = byte_length(fuzz_range)
-        if subservice is not None:
-            fuzz_value = (service.to_bytes(1, 'little') + subservice.to_bytes(1, 'little'))
-        elif data is not None: 
-            # non è detto che non si voglia settare sia subservice che data, da verificare???
-            # l'eventuale bruteforcing di data è stato quindi rimandato al chiamante
-            fuzz_value = (service.to_bytes(1, 'little') + data.to_bytes(data_len, 'little'))       
-        else:
-            fuzz_value = (service.to_bytes(1, 'little') + idx.to_bytes(byte_len, 'little'))
-            
-            
-        # concatenate the dlc with fuzz value
-        payload = (1 + byte_len).to_bytes(1, 'little') + fuzz_value
-
-        # TODO: length, payload, and padding must be set properly based on test_tp test 
-
-        # print_debug(f"test packet payload: ")
-        # print_hex(payload)
-        test_pkt = CAN(identifier=can_id,
-                       length=8, 
-                       data=payload)
-
-        # TODO: va aggiunto il padding a fuzz_value??? Dipende da TP, ora come ora no
-
-        # print_debug("waiting for test packet...")
-
-        if not multiframe:
-            results, unanswered = can_socket.sr(test_pkt, retry=2, timeout=2, verbose=0)
-            
-        else:
-            results, unanswered = can_socket.sr(test_pkt, retry=2, verbose=0, multi=True)
-        try:
-            results[0]
-        except Exception as e:
-            print_debug(f"Exception: {e}, probably no response from ECU")
-            continue
-
-        ans_list.append(results)
-
-        # print_debug("response: ")
-        # print_hex(test_ans[0].answer.data)
-        # QueryAnswer(
-        #   query=<CAN  identifier=XXX length=XXX data=XXX |>,
-        #   answer=<CAN  flags=XXX identifier=XXX length=XXX reserved=XXX data=XXX |>
-        # )
-        response_code = results[0].answer.data[1]
-        check_response_code(service, response_code)
-        
-        # TODO: metterei due liste
-        # una relativa alle positive responses, in cui si restituisce il payload
-        # che ha provocato la risposta e il valore della risposta
-        # una con i NRC, etc. 
-
-    return ans_list, None
-"""
