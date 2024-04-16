@@ -82,6 +82,7 @@ def main():
             tests.exec_test_tp() 
 
         elif command == "test_dds":
+
             utility.print_new_test_banner()
             print("Starting TEST_DDS\n")
 
@@ -97,10 +98,9 @@ def main():
             print("\nTEST_DSS finished.\n")
 
         elif command == "test_recu":
-
             tests.exec_test_recu()
 
-        elif command == "test_rsdi":
+        elif command == "test_rdbi":
             tests.exec_test_rdbi()
 
         elif command == "test_rsda":

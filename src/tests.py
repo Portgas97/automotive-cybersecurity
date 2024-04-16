@@ -138,23 +138,19 @@ def exec_test_dds(current_node: int=0x01) -> None:
     for new_session in range(1, 256): 
 
         active_session = current_node
-        dsc = utility.create_packet(can_id=client_can_id, 
-                            service=0x10, 
-                            subservice=active_session)
-        
-        # maintain the current session
-        res, _ = utility.send_receive(dsc, can_socket) 
-        # TODO other NRC can be analysed, not only positive responses
+        if not utility.send_diagnosti_session_control(active_session):
+            utility.print_error("diagnostic session control error")
+            return
 
         # if not already found
         if not session_graph.findChildNode(active_session, new_session): 
-            session_probe = utility.create_packet(can_id=client_can_id, 
-                                          service=0x10, 
-                                          subservice=new_session)
+            session_probe = utility.create_packet(service=0x10, 
+                                                  subservice=new_session)
 
-            res, _ = utility.send_receive(session_probe, can_socket)
+            res, _ = utility.send_receive(session_probe)
 
             try: 
+                # TODO other NRC can be analysed, not only positive responses
                 if res[0].answer.data[1] == 0x50: # session is reachable
                     session_graph.AddEdge([active_session, new_session])
                     session_graph.addVertex(new_session)
@@ -188,27 +184,24 @@ def exec_test_recu() -> None:
     
     for ses in session_graph.getVertices():
 
-        utility.print_debug(f"ses: {ses}")
+        utility.print_debug(f"scanning session: {ses}")
 
-        packets = utility.fuzz(can_id=client_can_id, 
-                       service=0x11,
-                       fuzz_subservice=True, 
-                       fuzz_subservice_range=0xFF)
+        packets = utility.fuzz(service=0x11,
+                               fuzz_subservice=True, 
+                               fuzz_subservice_range=0xFF)
     
-        for i,p in enumerate(packets):
-            # diagnostic session control
-            dsc = utility.create_packet(can_id=client_can_id, 
-                                service=0x10, 
-                                subservice=ses)
-            _, _ = utility.send_receive(dsc, can_socket) 
-            # TODO check result
-            # TODO make a send_diagnosti_session_control()
-
-            res, _ = utility.send_receive(p, can_socket)
+        for p in packets:
+            
+            if not utility.send_diagnosti_session_control(ses):
+                utility.print_error("diagnostic session control error")
+                return 
+            
+            res, _ = utility.send_receive(p)
             ret = utility.read_response_code(res)
-            if ret != -1:
-                print(f"{i}: ", end="")
-                utility.check_response_code(11, ret)
+            if ret == 0x51:
+                print(f"Session {ses} allows packet {p.show()}")
+            elif ret != -1:
+                utility.check_response_code(11, ret, ['NEG'])
             else:
                 print("{i}: strange behaviour, ECU is not responding?")
                 print(f"double check session {ses} and packet {p.show()}")
@@ -224,7 +217,6 @@ def exec_test_rdbi() -> None:
     It requests an ECU data read, exploiting the 0x22 UDS service.
 
     This test shall be repeated for each supported diagnostic session.
-    :param can_socket: socket connected to the CAN (or vcan) interface
     :return: -
     """
     utility.print_new_test_banner()
@@ -232,10 +224,25 @@ def exec_test_rdbi() -> None:
 
     can_socket = ctx_man.getCanSocket()
 
-    utility.print_error("trying rdbi using fuzz range as DIDs....")
-    # TODO change with new functions
-    # create_and_send_packet(can_socket, 0x22, None, None, 0, 0xFFFF, False, True)
+    for session in ctx_man.SessionsGraph.getVertices():
+        
+        rdbi_packets = utility.fuzz(service=0x22, 
+                                    fuzz_data=True, 
+                                    fuzz_data_range=0xFFFF)
+        
+        utility.print_debug("here world")
 
+        for packet in rdbi_packets:
+            utility.send_diagnosti_session_control(session)
+            # TODO oppure mando 1 fuori e start tester present thread?
+            print("sending.............", end="")
+            result_list, _ = utility.send_receive(packet, multiframe=True)
+            print("OK")
+            for i,_ in enumerate(result_list):
+                ret = utility.read_response_code(result_list, i)
+                if ret == 0x62:
+                    print("data:")
+                    print(result_list[i].answer.data)
     print("TEST_RDBI finished.\n")
 
 

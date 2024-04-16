@@ -132,7 +132,85 @@ def print_hex(hex_string, delim="") -> None:
         print('.'.join(x for x in value_list))
 
 
-def check_response_code(req_code: int, resp_code: int) -> bool:
+# TODO decorate
+# setBit() returns an integer with the bit at 'offset' set to 1.
+def setBit(int_type, offset):
+    mask = 1 << offset
+    return(int_type | mask)
+
+# TODO decorate
+# testBit() returns a nonzero result, 2**offset, if the bit at 'offset' is one.
+def testBit(int_type, offset):
+    mask = 1 << offset
+    return(int_type & mask)
+
+# TODO decorate
+def build_flag_mask(flag_list :list[str]) -> int:
+    mask = int(0x0000000)
+    for flag in flag_list:
+        if flag == 'ALL':
+            mask = 0xFFFFFFF
+            break
+        elif flag == 'POS':
+            setBit(mask, 0)
+            break
+        elif flag == 'NEG':
+            mask = 0xFFFFFFE
+            break
+        elif flag == 'SPECIFIC':
+            setBit(mask, 24)
+        elif flag == 'SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION':
+            setBit(mask, 23)
+        elif flag == 'SUBFUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION':
+            setBit(mask, 22)
+        elif flag == 'REQUEST_RECEIVED_RESPONSE_PENDING':
+            setBit(mask, 21)
+        elif flag == 'WRONG_BLOCK_SEQUENCE_COUNTER':
+            setBit(mask, 20)
+        elif flag == 'GENERAL_PROGRAMMING_FAILURE':
+            setBit(mask, 19)
+        elif flag == 'TRANSFER_DATA_SUSPENDED':
+            setBit(mask, 18)
+        elif flag == 'UPLOAD_DOWNLOAD_NOT_ACCEPTED':
+            setBit(mask, 17)
+        elif flag == 'RESERVED_BY_EDLSD':
+            setBit(mask, 16)
+        elif flag == 'REQUIRED_TIME_DELAY_NOT_EXPIRED':
+            setBit(mask, 15)
+        elif flag == 'EXCEEDED_NUMBER_OF_ATTEMPT':
+            setBit(mask, 14)
+        elif flag == 'INVALID_KEY':
+            setBit(mask, 13)
+        elif flag == 'SECURITY_ACCESS_DENIED':
+            setBit(mask, 12)
+        elif flag == 'REQUEST_OUT_OF_RANGE':
+            setBit(mask, 11)
+        elif flag == 'FAILURE_PREVENTS_EXECUTION':
+            setBit(mask, 10)
+        elif flag == 'NO_RESPONSE_FROM_SUBNET_COMPONENTE':
+            setBit(mask, 9)
+        elif flag == 'REQUEST_SEQUENCE_ERROR':
+            setBit(mask, 8)
+        elif flag == 'CONDITIONS_NOT_CORRECT':
+            setBit(mask, 7)
+        elif flag == 'BUSY_REPEAT_REQUEST':
+            setBit(mask, 6)
+        elif flag == 'RESPONSE_TOO_LONG':
+            setBit(mask, 5)
+        elif flag == 'INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT':
+            setBit(mask, 4)
+        elif flag == 'SUBFUNCTION_NOT_SUPPORTED':
+            setBit(mask, 3)
+        elif flag == 'SERVICE_NOT_SUPPORTED':
+            setBit(mask, 2)
+        elif flag == 'GENERAL_REJECT':
+            setBit(mask, 1)
+    return mask
+
+
+def check_response_code(req_code :int, 
+                        resp_code :int, 
+                        flag_list :list[str]=['ALL']) -> bool:
     """
     It checks for UDS positive or negative response, displaying relative info.
 
@@ -141,121 +219,105 @@ def check_response_code(req_code: int, resp_code: int) -> bool:
     :return: True in case of positive response, False otherwise
     """
 
-    # # testBit() returns a nonzero result, 2**offset, if the bit at 'offset' is one.
-    # def testBit(int_type, offset):
-    #     mask = 1 << offset
-    #     return(int_type & mask)
-    
-    # # setBit() returns an integer with the bit at 'offset' set to 1.
-    # def setBit(int_type, offset):
-    #     mask = 1 << offset
-    #     return(int_type | mask)
-    
-    # # clearBit() returns an integer with the bit at 'offset' cleared.
-    # def clearBit(int_type, offset):
-    #     mask = ~(1 << offset)
-    #     return(int_type & mask)
-        
-    # # toggleBit() returns an integer with the bit at 'offset' inverted, 0 -> 1 and 1 -> 0.
-    # def toggleBit(int_type, offset):
-    #     mask = 1 << offset
-    #     return(int_type ^ mask)
+    mask = build_flag_mask(flag_list)
 
-
-    if resp_code == req_code + 0x40:
+    if resp_code == req_code + 0x40 and testBit(mask, 0):
         print_success("Positive response found")
         return True
     
     # common response codes
-    elif resp_code == 0x10:
+    elif resp_code == 0x10 and (testBit(mask, 1) or mask == 0xFFFFFFF):
         print_error("error: general reject")
-    elif resp_code == 0x11:
+    elif resp_code == 0x11 and (testBit(mask, 2) or mask == 0xFFFFFFF):
         print_error("error: service not supported")
-    elif resp_code == 0x12:
+    elif resp_code == 0x12 and (testBit(mask, 3) or mask == 0xFFFFFFF):
         print_error("error: sub-function not supported")
-    elif resp_code == 0x13:
-        print_error("error: incorrect message length ot invalid format")
+    elif resp_code == 0x13 and (testBit(mask, 4) or mask == 0xFFFFFFF):
+        print_error("error: incorrect message length or invalid format")
         print("WARNING: possible implementation error")
-    elif resp_code == 0x14:
+    elif resp_code == 0x14 and (testBit(mask, 5) or mask == 0xFFFFFFF):
         print_error("error: response too long")
-    elif resp_code == 0x21:
+    elif resp_code == 0x21 and (testBit(mask, 6) or mask == 0xFFFFFFF):
         print_error("error: busy repeat request")
-    elif resp_code == 0x22:
+    elif resp_code == 0x22 and (testBit(mask, 7) or mask == 0xFFFFFFF):
         print_error("error: conditions not correct")
-    elif resp_code == 0x24:
+    elif resp_code == 0x24 and (testBit(mask, 8) or mask == 0xFFFFFFF):
         print_error("error: request sequence error")
-    elif resp_code == 0x25:
+    elif resp_code == 0x25 and (testBit(mask, 9) or mask == 0xFFFFFFF):
         print_error("error: no response from sub-net component")
-    elif resp_code == 0x26:
+    elif resp_code == 0x26 and (testBit(mask, 10) or mask == 0xFFFFFFF):
         print_error("error: failure prevents execution of request action")
-    elif resp_code == 0x31:
+    elif resp_code == 0x31 and (testBit(mask, 11) or mask == 0xFFFFFFF):
         print_error("error: request out of range")
-    elif resp_code == 0x33:
+    elif resp_code == 0x33 and (testBit(mask, 12) or mask == 0xFFFFFFF):
         print_error("error: security access denied")
-    elif resp_code == 0x35:
+    elif resp_code == 0x35 and (testBit(mask, 13) or mask == 0xFFFFFFF):
         print_error("error: invalid key")
-    elif resp_code == 0x36:
+    elif resp_code == 0x36 and (testBit(mask, 14) or mask == 0xFFFFFFF):
         print_error("error: exceeded number of attempts")
-    elif resp_code == 0x37:
+    elif resp_code == 0x37 and (testBit(mask, 15) or mask == 0xFFFFFFF):
         print_error("error: required time delay not expired")
     elif resp_code in range(0x38,0x4F+1):
-        print_error("error: reserved by Extended Data Link Security Document")
-    elif resp_code == 0x70:
+        if (testBit(mask, 16) or mask == 0xFFFFFFF):
+            print_error("error: reserved by Extended Data Link Security Document")
+    elif resp_code == 0x70 and (testBit(mask, 17) or mask == 0xFFFFFFF):
         print_error("error: upload/download not accepted")
-    elif resp_code == 0x71:
+    elif resp_code == 0x71 and (testBit(mask, 18) or mask == 0xFFFFFFF):
         print_error("error: transfer data suspended")
-    elif resp_code == 0x72:
+    elif resp_code == 0x72 and (testBit(mask, 19) or mask == 0xFFFFFFF):
         print_error("error: general programming failure")
-    elif resp_code == 0x73:
+    elif resp_code == 0x73 and (testBit(mask, 20) or mask == 0xFFFFFFF):
         print_error("error: wrong block sequence counter")
-    elif resp_code == 0x78:
+    elif resp_code == 0x78 and (testBit(mask, 21) or mask == 0xFFFFFFF):
         print_error("error: request correctly received, response is pending")
-    elif resp_code == 0x7E:
+    elif resp_code == 0x7E and (testBit(mask, 22) or mask == 0xFFFFFFF):
         print_error("error: sub-function not supported in active session")
-    elif resp_code == 0x7F:
+    elif resp_code == 0x7F and (testBit(mask, 23) or mask == 0xFFFFFFF):
         print_error("error: service not supported in active session")
 
     # specific conditions driven response codes
-    elif resp_code == 0x81:
-        print_error("error: rpm too high")
-    elif resp_code == 0x82:
-        print_error("error: rpm too low")
-    elif resp_code == 0x83:
-        print_error("error: engine is running")
-    elif resp_code == 0x84:
-        print_error("error: engine is not running")
-    elif resp_code == 0x85:
-        print_error("error: engine run-time too low")
-    elif resp_code == 0x86:
-        print_error("error: temperature too high")
-    elif resp_code == 0x87:
-        print_error("error: temperature too low")
-    elif resp_code == 0x88:
-        print_error("error: vehicle speed to high")
-    elif resp_code == 0x89:
-        print_error("error: vehicle speed to low")
-    elif resp_code == 0x8A:
-        print_error("error: throttle/pedal too high")
-    elif resp_code == 0x8B:
-        print_error("error: throttle/pedal to low")
-    elif resp_code == 0x8C:
-        print_error("error: transmission range not in neutral")
-    elif resp_code == 0x8D:
-        print_error("error: transmission range not in gear")
-    elif resp_code == 0x8F:
-        print_error("error: brake switch(es) not closed")
-    elif resp_code == 0x90:
-        print_error("error: shifter lever not in park")
-    elif resp_code == 0x91:
-        print_error("error: torque converter clutch locked")
-    elif resp_code == 0x92:
-        print_error("error: voltage too high")
-    elif resp_code == 0x93:
-        print_error("error: voltage too low")
+    elif mask == 0xFFFFFFF or mask == 0xFFFFFFE or testBit(mask, 24):
+        if resp_code == 0x81:
+            print_error("error: rpm too high")
+        elif resp_code == 0x82:
+            print_error("error: rpm too low")
+        elif resp_code == 0x83:
+            print_error("error: engine is running")
+        elif resp_code == 0x84:
+            print_error("error: engine is not running")
+        elif resp_code == 0x85:
+            print_error("error: engine run-time too low")
+        elif resp_code == 0x86:
+            print_error("error: temperature too high")
+        elif resp_code == 0x87:
+            print_error("error: temperature too low")
+        elif resp_code == 0x88:
+            print_error("error: vehicle speed to high")
+        elif resp_code == 0x89:
+            print_error("error: vehicle speed to low")
+        elif resp_code == 0x8A:
+            print_error("error: throttle/pedal too high")
+        elif resp_code == 0x8B:
+            print_error("error: throttle/pedal to low")
+        elif resp_code == 0x8C:
+            print_error("error: transmission range not in neutral")
+        elif resp_code == 0x8D:
+            print_error("error: transmission range not in gear")
+        elif resp_code == 0x8F:
+            print_error("error: brake switch(es) not closed")
+        elif resp_code == 0x90:
+            print_error("error: shifter lever not in park")
+        elif resp_code == 0x91:
+            print_error("error: torque converter clutch locked")
+        elif resp_code == 0x92:
+            print_error("error: voltage too high")
+        elif resp_code == 0x93:
+            print_error("error: voltage too low")
 
     # otherwise
     else:
-        print_error("error: unexpected response")
+        if mask == 0xFFFFFFF or mask == 0xFFFFFFE:
+            print_error("error: unexpected response")
     return False
 
 
@@ -322,8 +384,7 @@ def byte_length(hex_int: int) -> int:
     return (hex_int.bit_length() + 7) // 8
 
 
-def create_packet(can_id: int, 
-                  service: int =0, 
+def create_packet(service: int =0, 
                   subservice: int =0,
                   data: bytes =b'',
                   data_len: int =0, 
@@ -335,9 +396,10 @@ def create_packet(can_id: int,
     :param subservice: UDS subservice
     :param data: optional data used in some UDS services
     :param data_len: length of the data above
-    :param can_id: CAN identifier
     :return: the built CAN packet
     """
+    can_id = ctx_man.CAN_IDENTIFIER
+
     pld: bytes
     if service:
         pld = service.to_bytes(1, 'little')
@@ -345,8 +407,7 @@ def create_packet(can_id: int,
         pld += subservice.to_bytes(1, 'little') # type: ignore
     if data != b'': 
         pld += data    # type: ignore
-    
-        
+      
     # concatenate the dlc with fuzz value
     payload = (len(pld)).to_bytes(1, 'little') + pld
 
@@ -358,7 +419,6 @@ def create_packet(can_id: int,
 
 
 def send_receive(packet: Packet, 
-                 can_socket: NativeCANSocket, 
                  multiframe: bool =False) -> tuple[SndRcvList, PacketList]:
     """
     Calls the sr() scapy function, it distinguish between single and multiframe
@@ -369,10 +429,15 @@ def send_receive(packet: Packet,
     :param multiframe: flag to enable multiframe handling
     :return: a tuple of answered query-answer and unanswered packets
     """
+    can_socket = ctx_man.CAN_SOCKET
     if not multiframe:
             results, unanswered = can_socket.sr(packet, retry=0, timeout=0.3, verbose=0)
     else:
-        results, unanswered = can_socket.sr(packet, verbose=1, multi=True)
+        results, unanswered = can_socket.sr(packet, 
+                                            timeout=3,
+                                            verbose=1, 
+                                            multi=True, 
+                                            threaded=True)
     try:
         results[0]
     except Exception as e:
@@ -381,8 +446,7 @@ def send_receive(packet: Packet,
     return results, unanswered
 
 
-def fuzz(can_id: int, 
-         service: int =0, # TODO i don't know, myabe it will be always required (except for service fun obv.)
+def fuzz(service: int =0, # TODO i don't know, myabe it will be always required (except for service fun obv.)
          subservice: int =0,
          fuzz_service: bool =False, 
          fuzz_subservice: bool =False,
@@ -406,7 +470,8 @@ def fuzz(can_id: int,
     :param fuzz_data_range: range of fuzzing in case of data fuzzing
     :return: a list of packets
     """
-    
+    # can_id = ctx_man.CAN_IDENTIFIER # maybe not necessary 
+
     packets_list = []
     if fuzz_service and not fuzz_subservice and not fuzz_data:
         # fuzz solo service
@@ -415,13 +480,14 @@ def fuzz(can_id: int,
     elif not fuzz_service and fuzz_subservice and not fuzz_data:
         # fuzz solo subservice
         for fuzzval in range(fuzz_subservice_range + 1):
-            packets_list.append(create_packet(can_id=can_id,  
-                                              service=service,
+            packets_list.append(create_packet(service=service, 
                                               subservice=fuzzval))
 
-    elif not fuzz_service_range and not fuzz_subservice and fuzz_data:
-        # fuzz solo data
-        pass
+    elif not fuzz_service and not fuzz_subservice and fuzz_data:
+        for fuzzval in range(fuzz_data_range + 1):
+            packets_list.append(create_packet(service=service, 
+                                              data=fuzzval.to_bytes(4, 'little'),
+                                              data_len=4))
 
     elif fuzz_service and fuzz_subservice and not fuzz_data:
         # fuzz service and subservice
@@ -444,9 +510,21 @@ def fuzz(can_id: int,
         pass
     return packets_list
 
-
-def read_response_code(packet):
+# TODO decorate
+def read_response_code(packet: SndRcvList, index :int=0) -> int:
     try: 
-        return packet[0].answer.data[1]
+        return packet[index].answer.data[1]
     except IndexError:
         return -1
+    
+# TODO decorate
+def send_diagnosti_session_control(session :int) -> bool:
+    can_socket = ctx_man.getCanSocket()
+    client_can_id = ctx_man.getCanId()
+    
+    dsc = create_packet(service=0x10, subservice=session)
+    res, _ = send_receive(dsc) 
+    ret = read_response_code(res)
+    if ret == 0x50:
+        return True
+    return False
