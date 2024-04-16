@@ -1,25 +1,24 @@
 # automotive-security
-some stuff from my M.Sc. thesis in automotive security @ AVL Italy. 
+Framework for black-box penetration testing of Electronic Control Unit, starting 
+point of my Master Thesis in automotive cybersecurity @ AVL Italy. 
 
-
-The framework aims at implementing several tests for ECU testing. 
+This tool aims at implementing several tests for ECU testing. 
 
 Run: python3 main.py [--verbose] can_interface
 
-Then, the following menu appears:
-
-### photo
 
 The implemented tests are: 
 
-- Service enumerator
+- ISOTP-scanning
 - Session scans
-- read data by identifier
+- Service enumerator
+- Seed randomness evaluation
+- Security Access interaction
+- Fuzzing ...
+- Read Data by Identifier
 - etc. 
-- 
-- 
-- 
-- 
+- etc. 
+- etc. 
 
 
 -----------------------------------------------------------------------------

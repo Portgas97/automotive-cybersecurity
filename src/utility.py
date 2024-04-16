@@ -1,10 +1,12 @@
+# ============================================================================ #
+# =                                IMPORTS                                   = #
+# ============================================================================ #
 import sys  # to access CLI argments
 import atexit # TODO maybe later
 import signal # TODO maybe later
 import time
 
 from colorama import Fore, Style  # coloring output # TODO: better to use loggin library
-
 
 from scapy.layers.can import CAN
 # from scapy.contrib.isotp import *
@@ -22,14 +24,17 @@ conf.contribs['CAN']['remove-padding'] = True
 conf.contribs['ISOTP'] = {'use-can-isotp-kernel-module': True}
 from scapy.contrib.isotp import isotp_scan # must be after import above
 
-
 # TODO si possono fare funzioni di utilità basandosi su
  # QueryAnswer(
 #   query=<CAN  identifier=XXX length=XXX data=XXX |>,
 #   answer=<CAN  flags=XXX identifier=XXX length=XXX reserved=XXX data=XXX |>
 # )
 
-from classes import config_manager as ctx_man
+from configuration import config_manager as ctx_man
+
+# ============================================================================ #
+# =                         UTILITY FUNCTIONS                                = #
+# ============================================================================ #
 
 def handle_exit():
     """
@@ -112,7 +117,6 @@ def print_new_test_banner() -> None:
             "#####################################################################\n"
         )
 
-
 # TODO: test delim function, not done
 def print_hex(hex_string, delim="") -> None:
     """
@@ -136,6 +140,28 @@ def check_response_code(req_code: int, resp_code: int) -> bool:
     :param resp_code: UDS service response identifier
     :return: True in case of positive response, False otherwise
     """
+
+    # # testBit() returns a nonzero result, 2**offset, if the bit at 'offset' is one.
+    # def testBit(int_type, offset):
+    #     mask = 1 << offset
+    #     return(int_type & mask)
+    
+    # # setBit() returns an integer with the bit at 'offset' set to 1.
+    # def setBit(int_type, offset):
+    #     mask = 1 << offset
+    #     return(int_type | mask)
+    
+    # # clearBit() returns an integer with the bit at 'offset' cleared.
+    # def clearBit(int_type, offset):
+    #     mask = ~(1 << offset)
+    #     return(int_type & mask)
+        
+    # # toggleBit() returns an integer with the bit at 'offset' inverted, 0 -> 1 and 1 -> 0.
+    # def toggleBit(int_type, offset):
+    #     mask = 1 << offset
+    #     return(int_type ^ mask)
+
+
     if resp_code == req_code + 0x40:
         print_success("Positive response found")
         return True
@@ -146,7 +172,7 @@ def check_response_code(req_code: int, resp_code: int) -> bool:
     elif resp_code == 0x11:
         print_error("error: service not supported")
     elif resp_code == 0x12:
-        print_error("error: sub function not supported")
+        print_error("error: sub-function not supported")
     elif resp_code == 0x13:
         print_error("error: incorrect message length ot invalid format")
         print("WARNING: possible implementation error")
@@ -417,3 +443,10 @@ def fuzz(can_id: int,
         #error?
         pass
     return packets_list
+
+
+def read_response_code(packet):
+    try: 
+        return packet[0].answer.data[1]
+    except IndexError:
+        return -1

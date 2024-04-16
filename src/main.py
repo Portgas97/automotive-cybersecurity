@@ -3,13 +3,10 @@ from scapy.contrib.cansocket_native import NativeCANSocket
 
 import tests
 import utility
-from classes import config_manager as ctx_man
+from configuration import config_manager as ctx_man
 
 
 def main():
-
-    print("Default configurations:")
-    ctx_man.readConfigurations()
 
     parser = argparse.ArgumentParser()
 
@@ -25,17 +22,16 @@ def main():
     if args.verbose:
         ctx_man.setVerboseDebug(True)
         utility.print_debug("verbosity turned on")
+        print("Default configurations:")
+        ctx_man.readConfigurations()
 
     ctx_man.setCanInterface(args.interface)
 
     # ! forse basta mettere nofilter=1 nella chiamata a sr per ricevere un po tutto
-    
     socket = NativeCANSocket(channel=ctx_man.getCanInterface(),  
                          can_filters=[{'can_id': ctx_man.getServerCanId(),
                                        'can_mask': 0x7ff}]) 
-        
     ctx_man.setCanSocket(socket)
-    # TODO debug assignments above
 
     print_banner = True
 
@@ -43,7 +39,7 @@ def main():
 
         command: str = ""
         if print_banner:
-            tests.print_menu()
+            utility.print_menu()
         print_banner = False
 
         command = input("\nEnter command: ")
@@ -67,7 +63,7 @@ def main():
         elif command == "isotp_scan":
             tests.isotp_scanning(NativeCANSocket(channel=ctx_man.getCanInterface())) 
 
-            tests.print_debug("You can now set the receiver and sender IDs now!")
+            utility.print_debug("You can now set the receiver and sender IDs now!")
 
         elif command == "set_my_ID":
             can_id = input("Enter the CAN bus ID to test (hex w/o 0x): ")
@@ -75,16 +71,18 @@ def main():
         
         elif command == "set_listen_ID":
             can_id = input("Enter the CAN ID for sniffing (hex w/o 0x): ")
+            ctx_man.setServerCanId(int(can_id, 16))
             socket = NativeCANSocket(channel=ctx_man.getCanInterface(), 
-                                        can_filters=[{'can_id': int(can_id, 16), 
-                                                    'can_mask': 0x7ff}])
+                                     can_filters=[
+                                        {'can_id': ctx_man.getServerCanId(), 
+                                        'can_mask': 0x7ff}])
             ctx_man.setCanSocket(socket)
 
         elif command == "test_tp":
             tests.exec_test_tp() 
 
         elif command == "test_dds":
-            tests.print_new_test_banner()
+            utility.print_new_test_banner()
             print("Starting TEST_DDS\n")
 
             from halo import Halo
@@ -122,11 +120,11 @@ def main():
             pass
 
         else:
-            tests.print_error("error: the inserted command does not exist")
+            utility.print_error("error: the inserted command does not exist")
             print("ERROR in command parsing")
 
     ctx_man.CAN_SOCKET.close()
-    tests.print_success("PROGRAM CLOSED.")
+    utility.print_success("PROGRAM CLOSED.")
 
 
 if __name__ == "__main__":
