@@ -5,7 +5,7 @@ import tests
 import utility
 from configuration import config_manager as ctx_man
 
-
+# testing git # TODO remove 
 def main():
 
     parser = argparse.ArgumentParser()
