@@ -72,7 +72,7 @@ def exec_test_tp() -> None:
         # ans[0].answer to access the CAN object in the query-answer object
         # note that we may not receive a response, thus the exception handling      
         try: 
-            if ans[0] and ans[0].answer.data[1] == 0x7E: # positive response
+            if ans[0] and utility.read_response_code(ans) == 0x7E: # positive response
                 passed[i] = True
         except IndexError:
             continue
@@ -105,9 +105,7 @@ def send_selected_tester_present(socket: utility.NativeCANSocket,
                                     data=payloads[i])
 
             tp_ans, _ = socket.sr(selected_request, inter=0.5, retry=-2, timeout=1, verbose=0)
-            # print("tester present response: ")
-            # print(tp_ans[0].answer.data)
-            if tp_ans[0] and tp_ans[0].answer.data[1] == 0x7E:
+            if tp_ans[0] and utility.read_response_code(tp_ans) == 0x7E:
                 return True
             else:
                 continue
@@ -134,30 +132,46 @@ def exec_test_dds(current_node: int=0x01) -> None:
     can_socket = ctx_man.getCanSocket()
     client_can_id = ctx_man.getCanId()
     session_graph = ctx_man.getSessionGraph()
+    
     # scan the session space
     for new_session in range(1, 256): 
 
         active_session = current_node
+
+        if active_session == new_session:
+            continue
+
         if not utility.send_diagnosti_session_control(active_session):
-            utility.print_error("diagnostic session control error")
-            return
+            utility.print_error(f"Diagnostic Session Control error, from"
+                                f"{hex(active_session)} to {hex(new_session)}")
+            ctx_man.ToCheckGraph.addVertex(active_session)
+            ctx_man.ToCheckGraph.addVertex(new_session)
+            ctx_man.ToCheckGraph.AddEdge([active_session, new_session])
+            continue
 
-        # if not already found
-        if not session_graph.findChildNode(active_session, new_session): 
-            session_probe = utility.create_packet(service=0x10, 
-                                                  subservice=new_session)
+        recursion = True
+        if new_session in session_graph.getVertices():
+            recursion = False
 
-            res, _ = utility.send_receive(session_probe)
+        session_probe = utility.create_packet(service=0x10, 
+                                                subservice=new_session)
 
-            try: 
-                # TODO other NRC can be analysed, not only positive responses
-                if res[0].answer.data[1] == 0x50: # session is reachable
-                    session_graph.AddEdge([active_session, new_session])
-                    session_graph.addVertex(new_session)
-                    # recursive exploration from new session
+        res, _ = utility.send_receive(session_probe)
+
+        try: 
+            # TODO other NRC can be analysed, not only positive responses
+            print(f"From {hex(active_session)} to {hex(new_session)}", end="")
+            ret = utility.read_response_code(res)
+            utility.check_response_code(0x10, ret, ['ALL'])
+
+            if utility.read_response_code(res) == 0x50: # session is reachable
+                session_graph.AddEdge([active_session, new_session])
+                session_graph.addVertex(new_session)
+                # recursive exploration from new session
+                if recursion:
                     exec_test_dds(current_node=new_session) 
-            except:
-                utility.print_debug("An exception occured.")
+        except:
+            utility.print_debug("An exception occured.")
                 
 
 
@@ -318,7 +332,7 @@ def exec_test_rssdi(can_socket: utility.NativeCANSocket, can_id: int) -> None:
                         length=2, 
                         data=payload)
         ans_rssdi_test = can_socket.sr(rssdi_pkt, verbose=0)[0]
-        response_code = ans_rssdi_test[0].answer.data[0]
+        response_code = ans_rssdi_test[0].answer.data[1]
         if not utility.check_response_code(0x10, response_code):
             utility.print_error("ERROR in packet response")
         else:

@@ -87,14 +87,18 @@ def main():
             print("Starting TEST_DDS\n")
 
             from halo import Halo
-            spinner = Halo(text='Executing script', spinner='bouncingBar')
-            spinner.start()
+            # spinner = Halo(text='Executing script', spinner='bouncingBar')
+            # spinner.start()
             
             tests.exec_test_dds()
             
-            spinner.stop()
+            # spinner.stop()
             print("\n Discovered sessions: ")
             ctx_man.getSessionGraph().printGraph()
+
+            print("\n Pay attention to:")
+            ctx_man.ToCheckGraph.printGraph()
+
             print("\nTEST_DSS finished.\n")
 
         elif command == "test_recu":

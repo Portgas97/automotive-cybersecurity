@@ -19,10 +19,12 @@ class ConfigurationManager:
 
             # TODO not set in production
             # Default diagnostic is always available
-            self.SessionsGraph = Graph({0x01 : [0x03, 0x40, 0x4f], 
-                                        0x03 : [0x01, 0x40, 0x4f], 
-                                        0x40 : [0x01, 0x03, 0x4f], 
-                                        0x4f : [0x01, 0x03, 0x40]}) 
+            self.SessionsGraph = Graph({0x01 : []})
+            self.ToCheckGraph = Graph({})
+            # self.SessionsGraph = Graph({0x01 : [0x03, 0x40, 0x4f], 
+                                        # 0x03 : [0x01, 0x40, 0x4f], 
+                                        # 0x40 : [0x01, 0x03, 0x4f], 
+                                        # 0x4f : [0x01, 0x03, 0x40]}) 
             self.CAN_SOCKET = NativeCANSocket()
     
     def getConfigurations(self):

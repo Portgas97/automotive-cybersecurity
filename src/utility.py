@@ -418,8 +418,8 @@ def create_packet(service: int =0,
     return CAN(identifier=can_id, length=8, data=payload)
 
 
-def send_receive(packet: Packet, 
-                 multiframe: bool =False) -> tuple[SndRcvList, PacketList]:
+def send_receive(packet :Packet, 
+                 multiframe :bool=False) -> tuple[SndRcvList, PacketList]:
     """
     Calls the sr() scapy function, it distinguish between single and multiframe
     cases. 
@@ -523,8 +523,23 @@ def send_diagnosti_session_control(session :int) -> bool:
     client_can_id = ctx_man.getCanId()
     
     dsc = create_packet(service=0x10, subservice=session)
-    res, _ = send_receive(dsc) 
+    res, unans = send_receive(dsc) 
+    try:
+        print(unans[0].show())
+    except:
+        pass
     ret = read_response_code(res)
     if ret == 0x50:
         return True
     return False
+
+
+# TODO for cool console display (not-scrolling)
+# import os,time
+
+# clear = lambda: os.system('cls')      # or os.system('clear') for Unix
+
+# for i in range(10,0,-1):
+#     clear()
+#     print i
+#     time.sleep(1)
