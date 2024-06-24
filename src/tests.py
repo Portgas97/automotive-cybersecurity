@@ -216,7 +216,6 @@ def exec_test_scan_rdbi(explore_sessions: bool =False) -> None:
 # ============================================================================ #
 # =                                TEST_TP                                   = #
 # ============================================================================ #
-# TODO may be no more useful
 def exec_test_tp() -> None:
     """
     Several tester present packet formats probing.
