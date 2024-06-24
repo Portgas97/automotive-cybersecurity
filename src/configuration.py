@@ -1,4 +1,5 @@
-from scapy.contrib.cansocket_native import NativeCANSocket
+# from scapy.contrib.cansocket_native import NativeCANSocket
+from scapy.contrib.isotp import ISOTPNativeSocket
 from graph import Graph
 
 # ============================================================================ #
@@ -15,17 +16,18 @@ class ConfigurationManager:
             self.VERBOSE_DEBUG = False  # verbosity flag
             self.CAN_IDENTIFIER = 0x7E5 # my CAN ID # TODO not set in production
             self.SERVER_CAN_ID = 0x7ED  # ECU server CAN ID # TODO not set in production
-            self.CAN_INTERFACE = "can0" # interface for CAN communication
+            self.CAN_INTERFACE = "can1" # interface for CAN communication # TODO not set in production
 
-            # TODO not set in production
+            
             # Default diagnostic is always available
-            self.SessionsGraph = Graph({0x01 : []})
+            # self.SessionsGraph = Graph({0x01 : []})
             self.ToCheckGraph = Graph({})
-            # self.SessionsGraph = Graph({0x01 : [0x03, 0x40, 0x4f], 
-                                        # 0x03 : [0x01, 0x40, 0x4f], 
-                                        # 0x40 : [0x01, 0x03, 0x4f], 
-                                        # 0x4f : [0x01, 0x03, 0x40]}) 
-            self.CAN_SOCKET = NativeCANSocket()
+            self.SessionsGraph  = Graph({0x01 : [0x03, 0x40, 0x4f], # TODO not set in production
+                                        0x03 : [0x01, 0x40, 0x4f], 
+                                        0x40 : [0x01, 0x03, 0x4f], 
+                                        0x4f : [0x01, 0x03, 0x40]})  
+            from scapy.contrib.automotive.uds import UDS
+            self.CAN_SOCKET = ISOTPNativeSocket(iface=self.CAN_INTERFACE, basecls=UDS)
     
     def getConfigurations(self):
             return self.__dict__.keys()
@@ -67,7 +69,7 @@ class ConfigurationManager:
     def getCanSocket(self):
         return self.CAN_SOCKET
     
-    def setCanSocket(self, can_socket :NativeCANSocket):
+    def setCanSocket(self, can_socket :ISOTPNativeSocket):
         self.CAN_SOCKET = can_socket
     
 
